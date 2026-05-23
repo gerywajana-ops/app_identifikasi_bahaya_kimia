@@ -776,7 +776,7 @@ def render_compound_overview(compound: ChemicalCompound):
                 str(compound.cid),
                 compound.iupac_name,
                 f"<b>{compound.molecular_formula}</b>",
-                f"{compound.molecular_weight:.3f} g/mol" if compound.molecular_weight else 'N/A',
+                f"{float(compound.molecular_weight):.3f} g/mol" if compound.molecular_weight else 'N/A',
                 get_cas_number(compound.cid)
             ]
         }
