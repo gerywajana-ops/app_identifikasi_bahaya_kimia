@@ -1069,7 +1069,7 @@ def render_footer():
 
 
 def render_quick_search():
-    """Render tombol pencarian cepat senyawa umum"""
+    """Render tombol pencarian cepat senyawa umum yang langsung berfungsi"""
     st.markdown("### 🔥 Pencarian Cepat")
     
     common_compounds = [
@@ -1090,10 +1090,11 @@ def render_quick_search():
     cols = st.columns(4)
     for i, (name, icon) in enumerate(common_compounds):
         with cols[i % 4]:
+            # Ketika tombol diklik, langsung set 'search_input' dan trigger rerun
             if st.button(f"{icon} {name}", key=f"quick_{i}", use_container_width=True):
-                st.session_state['quick_search'] = name
+                st.session_state['search_input'] = name
+                st.session_state['trigger_search'] = True
                 st.rerun()
-
 
 # =============================================================================
 # MAIN APPLICATION
