@@ -785,17 +785,15 @@ def render_pictograms(hazards: List[HazardInfo]):
 
 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
-    """Render klasifikasi bahaya lengkap dengan H-codes"""
+    """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
     st.markdown("### 🏷️ Klasifikasi Bahaya GHS")
     
-    # Ambil semua hazard statements
     all_hazards = get_all_hazard_info(cid)
     
     if not all_hazards and not hazards:
         st.info("Data klasifikasi bahaya GHS tidak tersedia untuk senyawa ini")
         return
     
-    # Kelompokkan berdasarkan kategori
     physical_hazards = [h for h in hazards if h.hazard_class == 'Fisika']
     health_hazards = [h for h in hazards if h.hazard_class == 'Kesehatan']
     env_hazards = [h for h in hazards if h.hazard_class == 'Lingkungan']
@@ -805,41 +803,43 @@ def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     with tabs[0]:
         if all_hazards:
             for h in all_hazards:
-                # Tentukan severity berdasarkan kode
                 code_num = int(h['code'][1:]) if h['code'][1:].isdigit() else 0
                 if code_num <= 205 or code_num in [300, 301, 304, 310, 311, 314, 318, 330, 331, 340, 350, 360]:
                     severity = 'high'
-                    bg_color = '#ffebee'
-                    border_color = '#f44336'
+                    bg_color = '#ffcdd2' # Merah pastel lebih gelap dikit
+                    border_color = '#b71c1c'
                 elif code_num <= 373:
                     severity = 'medium'
-                    bg_color = '#fff8e1'
-                    border_color = '#ff9800'
+                    bg_color = '#ffe082' # Kuning/Oren pastel
+                    border_color = '#e65100'
                 else:
                     severity = 'low'
-                    bg_color = '#e8f5e9'
-                    border_color = '#4caf50'
+                    bg_color = '#c8e6c9' # Hijau pastel
+                    border_color = '#1b5e20'
                 
+                # Tambahan style color: #1a1a1a untuk memaksa warna tulisan menjadi gelap
                 st.markdown(f"""
-                <div style="background: {bg_color}; border-left: 4px solid {border_color}; padding: 10px 15px; margin: 5px 0; border-radius: 0 8px 8px 0;">
-                    <b>{h['code']}</b>: {h['statement']} {render_hazard_badge(severity)}
+                <div style="background: {bg_color}; border-left: 5px solid {border_color}; padding: 12px 15px; margin: 6px 0; border-radius: 0 8px 8px 0; color: #1a1a1a !important; font-weight: 500;">
+                    <b style="color: #000000 !important;">{h['code']}</b>: {h['statement']} {render_hazard_badge(severity)}
                 </div>
                 """, unsafe_allow_html=True)
         else:
             for h in hazards:
+                bg = '#ffcdd2' if h.severity == 'high' else '#ffe082' if h.severity == 'medium' else '#c8e6c9'
                 st.markdown(f"""
-                <div class="hazard-statement" style="background: {'#ffebee' if h.severity == 'high' else '#fff8e1' if h.severity == 'medium' else '#e8f5e9'};">
+                <div class="hazard-statement" style="background: {bg}; color: #1a1a1a !important;">
                     <b>{h.pictogram_code}</b>: {h.statement} {render_hazard_badge(h.severity)}
                 </div>
                 """, unsafe_allow_html=True)
-    
+                
+    # Sisa render sub-tabs (Bahaya Fisika, Kesehatan, Lingkungan)
     with tabs[1]:
         if physical_hazards:
             for h in physical_hazards:
                 st.markdown(f"""
                 <div class="hazard-card hazard-physical">
-                    <b>{h.pictogram_name}</b> {render_hazard_badge(h.severity)}<br>
-                    <small>{h.statement}</small>
+                    <b style="color: #1a1a1a;">{h.pictogram_name}</b> {render_hazard_badge(h.severity)}<br>
+                    <span style="color: #222222;">{h.statement}</span>
                 </div>
                 """, unsafe_allow_html=True)
         else:
@@ -850,8 +850,8 @@ def render_hazard_classification(hazards: List[HazardInfo], cid: int):
             for h in health_hazards:
                 st.markdown(f"""
                 <div class="hazard-card hazard-health">
-                    <b>{h.pictogram_name}</b> {render_hazard_badge(h.severity)}<br>
-                    <small>{h.statement}</small>
+                    <b style="color: #1a1a1a;">{h.pictogram_name}</b> {render_hazard_badge(h.severity)}<br>
+                    <span style="color: #222222;">{h.statement}</span>
                 </div>
                 """, unsafe_allow_html=True)
         else:
@@ -862,13 +862,12 @@ def render_hazard_classification(hazards: List[HazardInfo], cid: int):
             for h in env_hazards:
                 st.markdown(f"""
                 <div class="hazard-card hazard-environmental">
-                    <b>{h.pictogram_name}</b> {render_hazard_badge(h.severity)}<br>
-                    <small>{h.statement}</small>
+                    <b style="color: #1a1a1a;">{h.pictogram_name}</b> {render_hazard_badge(h.severity)}<br>
+                    <span style="color: #222222;">{h.statement}</span>
                 </div>
                 """, unsafe_allow_html=True)
         else:
             st.info("Tidak ada data bahaya lingkungan yang terdeteksi")
-
 
 def render_nfpa_diamond(cid: int):
     """Render NFPA 704 Diamond"""
