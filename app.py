@@ -1052,7 +1052,7 @@ def render_synonyms(synonyms: List[str]):
     synonym_cols = st.columns(5)
     for i, syn in enumerate(synonyms[:15]):
         with synonym_cols[i % 5]:
-            st.markdown(f"<span style="background: #e8eaf6; padding: 3px 10px; border-radius: 15px; font-size: 0.8rem; display: inline-block; margin: 2px;">{syn}</span>", unsafe_allow_html=True)
+            st.markdown(f""<span style="background: #e8eaf6; padding: 3px 10px; border-radius: 15px; font-size: 0.8rem; display: inline-block; margin: 2px;">{syn}</span>", unsafe_allow_html=True)
 
 
 def render_footer():
