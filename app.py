@@ -28,7 +28,7 @@ st.set_page_config(
 # Custom CSS for styling
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&display=swap');
     
     * { font-family: 'Inter', sans-serif; }
     
@@ -45,131 +45,63 @@ st.markdown("""
         font-size: 2.5rem;
         font-weight: 700;
         margin-bottom: 0.5rem;
+        color: white !important;
     }
     
     .main-header p {
         font-size: 1.1rem;
         opacity: 0.9;
         margin-bottom: 0;
+        color: #e0e0e0 !important;
     }
     
+    /* Kontainer Bahaya dengan warna teks gelap agar terbaca jelas di background pastel */
     .hazard-card {
         padding: 1.5rem;
         border-radius: 12px;
         margin-bottom: 1rem;
         border-left: 5px solid;
+        color: #1a1a1a !important;
     }
     
-    .hazard-physical { background-color: #fff3e0; border-left-color: #ff9800; }
-    .hazard-health { background-color: #fce4ec; border-left-color: #e91e63; }
-    .hazard-environmental { background-color: #e8f5e9; border-left-color: #4caf50; }
+    .hazard-physical { background-color: #ffe0b2 !important; border-left-color: #ff9800; }
+    .hazard-health { background-color: #f8bbd0 !important; border-left-color: #e91e63; }
+    .hazard-environmental { background-color: #c8e6c9 !important; border-left-color: #4caf50; }
     
     .info-card {
-        background-color: #f8f9fa;
+        background-color: #262730;
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1rem;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #464855;
     }
-    
-    .ghs-badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin: 2px;
-    }
-    
-    .badge-explosive { background: #ff5722; color: white; }
-    .badge-flammable { background: #ff9800; color: white; }
-    .badge-oxidizing { background: #ffeb3b; color: #333; }
-    .badge-toxic { background: #f44336; color: white; }
-    .badge-corrosive { background: #9c27b0; color: white; }
-    .badge-environmental { background: #4caf50; color: white; }
-    .badge-compressed { background: #2196f3; color: white; }
-    .badge-health { background: #e91e63; color: white; }
     
     .search-container {
-        background: white;
-        padding: 2rem;
+        padding: 1.5rem;
         border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         margin-bottom: 2rem;
     }
     
-    .result-container {
-        animation: fadeIn 0.5s ease-in;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .pictogram-img {
-        border-radius: 8px;
-        margin: 5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .safety-section {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-        border-radius: 12px;
-        padding: 1.5rem;
-        margin-top: 1rem;
-    }
-    
-    .pictogram-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
-    }
-    
-    .property-table {
-        width: 100%;
-    }
-    
-    .sidebar-info {
-        font-size: 0.85rem;
-    }
-    
     .hazard-statement {
-        padding: 8px 12px;
-        margin: 4px 0;
+        padding: 12px 16px;
+        margin: 6px 0;
         border-radius: 8px;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        color: #1a1a1a !important; /* Memaksa teks berwarna gelap */
+        font-weight: 500;
     }
     
     .precautionary-statement {
-        padding: 6px 10px;
-        margin: 3px 0;
+        padding: 8px 12px;
+        margin: 4px 0;
         border-radius: 6px;
-        background-color: #e8eaf6;
+        background-color: #1e1e24;
+        color: #ffffff;
         font-size: 0.85rem;
-    }
-    
-    .footer {
-        text-align: center;
-        padding: 2rem;
-        color: #666;
-        font-size: 0.85rem;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px 8px 0 0;
-        padding: 10px 20px;
-        font-weight: 500;
+        border-left: 3px solid #3f51b5;
     }
 </style>
 """, unsafe_allow_html=True)
-
-
 # =============================================================================
 # DATA CLASSES
 # =============================================================================
