@@ -972,7 +972,7 @@ def render_safety_recommendations(hazards: List[HazardInfo]):
 
 
 def render_synonyms(synonyms: List[str]):
-    """Render sinonim senyawa"""
+    """Render sinonim senyawa dengan warna teks tebal dan kontras tinggi"""
     if not synonyms:
         return
     
@@ -980,7 +980,25 @@ def render_synonyms(synonyms: List[str]):
     synonym_cols = st.columns(5)
     for i, syn in enumerate(synonyms[:15]):
         with synonym_cols[i % 5]:
-            st.markdown(f"""<span style="background: #e8eaf6; padding: 3px 10px; border-radius: 15px; font-size: 0.8rem; display: inline-block; margin: 2px;">{syn}</span>""", unsafe_allow_html=True)
+            # Menggunakan background biru/ungu indigo gelap dengan teks putih tebal agar kontras di tema gelap/terang
+            st.markdown(f"""
+            <div style="
+                background-color: #3f51b5; 
+                color: #ffffff !important; 
+                padding: 6px 12px; 
+                border-radius: 20px; 
+                font-size: 0.85rem; 
+                font-weight: 600; 
+                text-align: center; 
+                margin: 4px 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            " title="{syn}">
+                {syn}
+            </div>
+            """, unsafe_allow_html=True)
 
 
 def render_footer():
