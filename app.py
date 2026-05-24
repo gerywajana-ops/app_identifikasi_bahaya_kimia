@@ -202,55 +202,65 @@ def get_compound_synonyms(cid: int) -> List[str]:
 
 
 def get_ghs_hazards(cid: int) -> List[HazardInfo]:
-    """Mendapatkan informasi bahaya GHS dari PubChem secara agresif"""
+    """Mendapatkan informasi bahaya GHS dari PubChem tanpa duplikasi berulang"""
     hazards = []
-    seen_codes = set() # Menghindari duplikasi kode H yang sama
+    seen_statements = set() # Untuk melacak deskripsi teks yang sudah ada
+    seen_codes = set()      # Untuk melacak kode bahaya unik
     
-    def extract_h_codes_recursive(node):
-        """Fungsi internal untuk mengekstrak kode H dari node JSON mana pun"""
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if k == 'String' and isinstance(v, str):
-                    # Cari pola kode H seperti H225, H319, dll.
-                    if v.startswith('H') and ':' in v:
-                        h_code = v.split(':')[0].strip()
-                        if h_code not in seen_codes:
-                            seen_codes.add(h_code)
-                            hazards.append(parse_hazard_code(v))
-                    elif any(kwd in v.lower() for kwd in ['flammable', 'toxic', 'corrosive', 'irritant', 'harmful']):
-                        # Fallback jika hanya berupa teks deskripsi bahaya tanpa kode titik dua
-                        parsed = parse_hazard_statement(v)
-                        if parsed.category not in seen_codes:
-                            seen_codes.add(parsed.category)
-                            hazards.append(parsed)
-                else:
-                    extract_h_codes_recursive(v)
-        elif isinstance(node, list):
-            for item in node:
-                extract_h_codes_recursive(item)
-
     try:
-        # Tautan API utama yang mencakup seluruh ringkasan data keselamatan (Safety & Hazards)
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards"
-        response = requests.get(url, timeout=12)
-        
+        # 1. Ambil data dari GHS Classification
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=GHS+Classification"
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
-            # Bongkar seluruh isi JSON secara otomatis untuk mencari kode bahaya
-            extract_h_codes_recursive(data)
-            
-        # Jika API Safety & Hazards kosong, coba fallback ke seluruh data record compound
-        if not hazards:
-            url_fallback = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
-            response_fb = requests.get(url_fallback, timeout=12)
-            if response_fb.status_code == 200:
-                extract_h_codes_recursive(response_fb.json())
+            sections = data.get('Record', {}).get('Section', [])
+            for section in sections:
+                subsections = section.get('Section', [])
+                for sub in subsections:
+                    if sub.get('TOCHeading') == 'GHS Classification':
+                        info = sub.get('Information', [])
+                        for item in info:
+                            value = item.get('Value', {})
+                            if 'StringWithMarkup' in value:
+                                for markup in value['StringWithMarkup']:
+                                    string = markup.get('String', '')
+                                    if 'Hazard Class' in string or 'Category' in string:
+                                        # Bersihkan teks untuk mendeteksi duplikasi teks kasar
+                                        clean_str = string.strip().lower()
+                                        if clean_str not in seen_statements:
+                                            seen_statements.add(clean_str)
+                                            parsed = parse_hazard_statement(string)
+                                            # Cegah penumpukan kategori fallback yang sama persis
+                                            state_key = f"{parsed.hazard_class}_{parsed.category}"
+                                            if state_key not in seen_codes:
+                                                seen_codes.add(state_key)
+                                                hazards.append(parsed)
+        
+        # 2. Jika tidak ada data atau sebagai pelengkap, gunakan hazard statements resmi (H-codes)
+        url_h = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Hazard+Statements"
+        response_h = requests.get(url_h, timeout=10)
+        if response_h.status_code == 200:
+            data_h = response_h.json()
+            sections = data_h.get('Record', {}).get('Section', [])
+            for section in sections:
+                subsections = section.get('Section', [])
+                for sub in subsections:
+                    info = sub.get('Information', [])
+                    for item in info:
+                        value = item.get('Value', {})
+                        if 'StringWithMarkup' in value:
+                            for markup in value['StringWithMarkup']:
+                                string = markup.get('String', '')
+                                if string.startswith('H') and ':' in string:
+                                    h_code = string.split(':')[0].strip()
+                                    if h_code not in seen_codes:
+                                        seen_codes.add(h_code)
+                                        hazards.append(parse_hazard_code(string))
                                         
     except Exception as e:
-        st.warning(f"Sistem gagal membaca otomatis data GHS: {e}")
+        st.warning(f"Tidak dapat mengambil data GHS: {e}")
     
     return hazards
-
 def parse_hazard_statement(statement: str) -> HazardInfo:
     """Parse pernyataan bahaya menjadi objek HazardInfo"""
     statement = statement.lower()
