@@ -755,7 +755,7 @@ def render_physical_properties(properties: Dict):
 
 
 def render_pictograms(hazards: List[HazardInfo]):
-    """Render gambar piktogram GHS berdasarkan deteksi kata kunci dari data hazards"""
+    """Render piktogram GHS berdasarkan hasil ekstraksi data hazards"""
     st.markdown("### ⚠️ Pictogram Bahaya GHS")
     
     if not hazards:
@@ -764,35 +764,37 @@ def render_pictograms(hazards: List[HazardInfo]):
         
     detected_codes = set()
     
-    # Deteksi kata kunci dari seluruh isi pernyataan bahaya yang berhasil diambil
     for h in hazards:
-        stmt = h.statement.lower() if h.statement else ""
-        code_p = h.pictogram_code.lower() if h.pictogram_code else ""
+        # Satukan semua teks dari properti objek untuk discan kata kuncinya
+        stmt_text = ""
+        if h.statement: stmt_text += " " + h.statement.lower()
+        if h.pictogram_code: stmt_text += " " + h.pictogram_code.lower()
+        if h.pictogram_name: stmt_text += " " + h.pictogram_name.lower()
         
-        # Cek kode langsung jika ada
-        if 'ghs01' in code_p: detected_codes.add('GHS01')
-        elif 'ghs02' in code_p: detected_codes.add('GHS02')
-        elif 'ghs03' in code_p: detected_codes.add('GHS03')
-        elif 'ghs04' in code_p: detected_codes.add('GHS04')
-        elif 'ghs05' in code_p: detected_codes.add('GHS05')
-        elif 'ghs06' in code_p: detected_codes.add('GHS06')
-        elif 'ghs07' in code_p: detected_codes.add('GHS07')
-        elif 'ghs08' in code_p: detected_codes.add('GHS08')
-        elif 'ghs09' in code_p: detected_codes.add('GHS09')
+        # Deteksi Kode Langsung
+        if 'ghs01' in stmt_text: detected_codes.add('GHS01')
+        if 'ghs02' in stmt_text: detected_codes.add('GHS02')
+        if 'ghs03' in stmt_text: detected_codes.add('GHS03')
+        if 'ghs04' in stmt_text: detected_codes.add('GHS04')
+        if 'ghs05' in stmt_text: detected_codes.add('GHS05')
+        if 'ghs06' in stmt_text: detected_codes.add('GHS06')
+        if 'ghs07' in stmt_text: detected_codes.add('GHS07')
+        if 'ghs08' in stmt_text: detected_codes.add('GHS08')
+        if 'ghs09' in stmt_text: detected_codes.add('GHS09')
         
-        # Scan kata kunci teks (Fallback jika kode GHS0x tidak tertulis di objek)
-        if 'flamm' in stmt or 'pyrophor' in stmt or 'highly flammable' in stmt: detected_codes.add('GHS02')
-        if 'toxic' in stmt or 'fatal' in stmt or 'poison' in stmt: detected_codes.add('GHS06')
-        if 'corros' in stmt or 'eye damag' in stmt or 'acid' in stmt: detected_codes.add('GHS05')
-        if 'explos' in stmt: detected_codes.add('GHS01')
-        if 'oxidiz' in stmt: detected_codes.add('GHS03')
-        if 'gas under press' in stmt or 'compressed gas' in stmt: detected_codes.add('GHS04')
-        if 'irritat' in stmt or 'harmful' in stmt or 'sensitiz' in stmt: detected_codes.add('GHS07')
-        if 'carcinogen' in stmt or 'mutagen' in stmt or 'respiratory' in stmt or 'target organ' in stmt: detected_codes.add('GHS08')
-        if 'aquatic' in stmt or 'toxic to aqua' in stmt or 'environment' in stmt: detected_codes.add('GHS09')
+        # Scan Kata Kunci (Sangat berguna jika PubChem mengembalikan teks deskripsi murni)
+        if 'flamm' in stmt_text or 'pyrophor' in stmt_text: detected_codes.add('GHS02')
+        if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text: detected_codes.add('GHS06')
+        if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text: detected_codes.add('GHS05')
+        if 'explos' in stmt_text: detected_codes.add('GHS01')
+        if 'oxidiz' in stmt_text: detected_codes.add('GHS03')
+        if 'gas under press' in stmt_text or 'compressed gas' in stmt_text: detected_codes.add('GHS04')
+        if 'irritat' in stmt_text or 'harmful' in stmt_text or 'sensitiz' in stmt_text: detected_codes.add('GHS07')
+        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'respiratory' in stmt_text or 'target organ' in stmt_text: detected_codes.add('GHS08')
+        if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text: detected_codes.add('GHS09')
 
     if not detected_codes:
-        st.info("Senyawa tidak memerlukan piktogram bahaya GHS khusus.")
+        st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
         return
         
     ghs_names = {
@@ -807,7 +809,7 @@ def render_pictograms(hazards: List[HazardInfo]):
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
     
-    # Tampilkan ke kolom layout Streamlit
+    # Render gambar ke dalam grid Streamlit
     cols = st.columns(min(len(detected_codes), 4))
     for i, code in enumerate(sorted(list(detected_codes))):
         url = get_pictogram_url(code)
