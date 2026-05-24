@@ -202,59 +202,54 @@ def get_compound_synonyms(cid: int) -> List[str]:
 
 
 def get_ghs_hazards(cid: int) -> List[HazardInfo]:
-    """Mendapatkan informasi bahaya GHS dari PubChem secara akurat untuk piktogram"""
+    """Mendapatkan data bahaya GHS dari PubChem tanpa filter ketat agar tidak kosong"""
     hazards = []
-    seen_statements = set()
+    seen_codes = set()
     
+    def parse_json_recursive(node):
+        """Menyisir seluruh isi JSON tanpa peduli struktur heading-nya"""
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == 'String' and isinstance(v, str):
+                    # Deteksi H-code resmi (Contoh: H225, H314)
+                    if v.startswith('H') and ':' in v:
+                        parts = v.split(':', 1)
+                        h_code = parts[0].strip()
+                        # Validasi format kode H standar (Panjang minimal 4 huruf, sisanya angka)
+                        if len(h_code) >= 4 and h_code[1:].isdigit():
+                            if h_code not in seen_codes:
+                                seen_codes.add(h_code)
+                                hazards.append(parse_hazard_code(v))
+                                
+                    # Deteksi jika teks berisi klausa bahaya langsung tanpa kode titik dua
+                    elif any(kwd in v.lower() for kwd in ['flammable', 'toxic', 'corrosive', 'irritant', 'harmful', 'fatal']):
+                        parsed = parse_hazard_statement(v)
+                        fake_code = f"{parsed.hazard_class}_{parsed.category}"
+                        if fake_code not in seen_codes:
+                            seen_codes.add(fake_code)
+                            hazards.append(parsed)
+                else:
+                    parse_json_recursive(v)
+        elif isinstance(node, list):
+            for item in node:
+                parse_json_recursive(item)
+
     try:
-        # Ambil langsung dari heading GHS Classification yang paling valid
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=GHS+Classification"
-        response = requests.get(url, timeout=10)
-        
+        # Ambil ringkasan data Safety & Hazards secara utuh
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards"
+        response = requests.get(url, timeout=12)
         if response.status_code == 200:
-            data = response.json()
-            sections = data.get('Record', {}).get('Section', [])
-            for section in sections:
-                subsections = section.get('Section', [])
-                for sub in subsections:
-                    if sub.get('TOCHeading') == 'GHS Classification':
-                        info = sub.get('Information', [])
-                        for item in info:
-                            value = item.get('Value', {})
-                            if 'StringWithMarkup' in value:
-                                for markup in value['StringWithMarkup']:
-                                    string = markup.get('String', '')
-                                    # Skip jika teks hanya berupa nama instansi/sumber data
-                                    if string and not any(x in string.lower() for x in ['pictogram', 'signal word', 'pubchem']):
-                                        clean_str = string.strip()
-                                        if clean_str.lower() not in seen_statements:
-                                            seen_statements.add(clean_str.lower())
-                                            # Lakukan parsing ke objek HazardInfo
-                                            if clean_str.startswith('H') and ':' in clean_str:
-                                                hazards.append(parse_hazard_code(clean_str))
-                                            else:
-                                                hazards.append(parse_hazard_statement(clean_str))
-                                                
-        # Fallback 1: Jika kosong, coba tembak sub-heading Hazard Statements langsung
+            parse_json_recursive(response.json())
+            
+        # Jika masih kosong, tembak data mentah record compound sebagai pertahanan terakhir
         if not hazards:
-            url_h = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Hazard+Statements"
-            response_h = requests.get(url_h, timeout=10)
-            if response_h.status_code == 200:
-                data_h = response_h.json()
-                sections = data_h.get('Record', {}).get('Section', [])
-                for section in sections:
-                    for sub in section.get('Section', []):
-                        for item in sub.get('Information', []):
-                            for markup in item.get('Value', {}).get('StringWithMarkup', []):
-                                string = markup.get('String', '')
-                                if string.startswith('H') and ':' in string:
-                                    clean_str = string.strip()
-                                    if clean_str.lower() not in seen_statements:
-                                        seen_statements.add(clean_str.lower())
-                                        hazards.append(parse_hazard_code(clean_str))
-                                        
+            url_fallback = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
+            response_fb = requests.get(url_fallback, timeout=12)
+            if response_fb.status_code == 200:
+                parse_json_recursive(response_fb.json())
+                
     except Exception as e:
-        st.warning(f"Gagal memuat data GHS: {e}")
+        st.warning(f"Sistem gagal membaca GHS: {e}")
         
     return hazards
     
