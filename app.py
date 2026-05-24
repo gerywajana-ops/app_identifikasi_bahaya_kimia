@@ -757,29 +757,76 @@ def render_physical_properties(properties: Dict):
 
 
 def render_pictograms(hazards: List[HazardInfo]):
-    """Render gambar piktogram GHS menggunakan format PNG"""
+    """Render gambar piktogram GHS secara akurat berdasarkan deteksi bahaya"""
     st.markdown("### ⚠️ Pictogram Bahaya GHS")
     
-    unique_pictograms = {}
-    for hazard in hazards:
-        if hazard.pictogram_code not in unique_pictograms:
-            unique_pictograms[hazard.pictogram_code] = hazard
-    
-    if not unique_pictograms:
+    if not hazards:
         st.info("Tidak ada data pictogram GHS yang tersedia untuk senyawa ini")
         return
+        
+    # Kumpulan pemetaan kata kunci teks ke kode piktogram resmi
+    keyword_to_ghs = {
+        'flamm': 'GHS02',       # Flammable / mudah terbakar
+        'pyrophor': 'GHS02',
+        'self-heat': 'GHS02',
+        'toxic': 'GHS06',       # Toxic / Beracun (Tengkorak)
+        'fatal': 'GHS06',
+        'corros': 'GHS05',      # Corrosive / Korosif (Asam/Tangan)
+        'eye damag': 'GHS05',
+        'explos': 'GHS01',      # Explosive / Peledak
+        'unstabl': 'GHS01',
+        'oxidiz': 'GHS03',      # Oxidizing / Pengoksidasi
+        'gas under press': 'GHS04', # Gas bertekanan (Tabung)
+        'liquefied gas': 'GHS04',
+        'irritat': 'GHS07',     # Irritant / Tanda Seru
+        'harmful': 'GHS07',
+        'sensitiz': 'GHS07',
+        'carcinogen': 'GHS08',  # Health Hazard / Kronis (Siluet dada)
+        'mutagen': 'GHS08',
+        'respiratory': 'GHS08',
+        'toxic to aqua': 'GHS09', # Environmental / Bahaya Lingkungan (Ikan mati)
+        'aquatic': 'GHS09'
+    }
     
-    cols = st.columns(min(len(unique_pictograms), 4))
+    # Ambil piktogram unik yang benar-benar sesuai dengan daftar bahaya yang ada
+    detected_codes = set()
+    for h in hazards:
+        # 1. Coba ambil dari pictogram_code bawaan jika sudah terisi standar
+        if h.pictogram_code and h.pictogram_code.startswith('GHS'):
+            detected_codes.add(h.pictogram_code)
+        # 2. Jika kosong/N/A, scan teks pernyataannya menggunakan keyword_to_ghs
+        elif h.statement:
+            stmt_lower = h.statement.lower()
+            for keyword, code in keyword_to_ghs.items():
+                if keyword in stmt_lower:
+                    detected_codes.add(code)
+                    
+    if not detected_codes:
+        st.info("Tidak ada gambar pictogram khusus yang cocok dengan klasifikasi bahaya.")
+        return
+        
+    # Buat kolom layout Streamlit sesuai jumlah piktogram yang terdeteksi
+    cols = st.columns(min(len(detected_codes), 4))
     
-    for i, (code, hazard) in enumerate(unique_pictograms.items()):
+    # Nama piktogram untuk teks caption di bawah gambar
+    ghs_names = {
+        'GHS01': 'Explosive (Mudah Meledak)',
+        'GHS02': 'Flammable (Mudah Terbakar)',
+        'GHS03': 'Oxidizing (Pengoksidasi)',
+        'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
+        'GHS05': 'Corrosive (Korosif / Merusak)',
+        'GHS06': 'Acute Toxicity (Beracun / Toksik)',
+        'GHS07': 'Harmful / Irritant (Bahaya Ringan / Iritasi)',
+        'GHS08': 'Health Hazard (Bahaya Kesehatan Kronis)',
+        'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
+    }
+    
+    for i, code in enumerate(sorted(detected_codes)):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                # Menggunakan format PNG membuat st.image bisa langsung menampilkan gambar tanpa error
-                st.image(url, caption=hazard.pictogram_name, use_container_width=True)
-            
-            st.markdown(render_hazard_badge(hazard.severity), unsafe_allow_html=True)
-            st.markdown(f"<small>{hazard.hazard_class}</small>", unsafe_allow_html=True)
+                # Menampilkan gambar PNG dari fungsi get_pictogram_url sebelumnya
+                st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
