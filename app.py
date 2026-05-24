@@ -982,7 +982,7 @@ def render_safety_recommendations(hazards: List[HazardInfo]):
 
 
 def render_synonyms(synonyms: List[str]):
-    """Render sinonim senyawa dengan warna teks tebal dan kontras tinggi"""
+    """Render sinonim senyawa dengan warna teks tegas dan kontras tinggi di tema gelap/terang"""
     if not synonyms:
         return
     
@@ -990,7 +990,7 @@ def render_synonyms(synonyms: List[str]):
     synonym_cols = st.columns(5)
     for i, syn in enumerate(synonyms[:15]):
         with synonym_cols[i % 5]:
-            # Menggunakan background biru/ungu indigo gelap dengan teks putih tebal agar kontras di tema gelap/terang
+            # Menggunakan warna background biru indigo gelap dengan teks putih tebal agar terbaca
             st.markdown(f"""
             <div style="
                 background-color: #3f51b5; 
