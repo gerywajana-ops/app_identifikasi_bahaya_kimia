@@ -758,7 +758,7 @@ def render_physical_properties(properties: Dict):
 
 
 def render_pictograms(hazards: List[HazardInfo]):
-    """Render pictogram GHS"""
+    """Render gambar piktogram GHS secara langsung menggunakan URL web"""
     st.markdown("### ⚠️ Pictogram Bahaya GHS")
     
     unique_pictograms = {}
@@ -776,13 +776,8 @@ def render_pictograms(hazards: List[HazardInfo]):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                try:
-                    response = requests.get(url, timeout=10)
-                    if response.status_code == 200:
-                        img = Image.open(BytesIO(response.content))
-                        st.image(img, caption=hazard.pictogram_name, use_container_width=True)
-                except:
-                    st.warning(f"Gagal memuat: {hazard.pictogram_name}")
+                # Langsung panggil URL-nya ke st.image tanpa ditarik lewat requests & PIL
+                st.image(url, caption=hazard.pictogram_name, use_container_width=True)
             
             st.markdown(render_hazard_badge(hazard.severity), unsafe_allow_html=True)
             st.markdown(f"<small>{hazard.hazard_class}</small>", unsafe_allow_html=True)
