@@ -757,7 +757,7 @@ def render_physical_properties(properties: Dict):
 
 
 def render_pictograms(hazards: List[HazardInfo]):
-    """Render gambar piktogram GHS secara langsung menggunakan URL web"""
+    """Render gambar piktogram GHS menggunakan format PNG"""
     st.markdown("### ⚠️ Pictogram Bahaya GHS")
     
     unique_pictograms = {}
@@ -775,12 +775,11 @@ def render_pictograms(hazards: List[HazardInfo]):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                # Langsung panggil URL-nya ke st.image tanpa ditarik lewat requests & PIL
+                # Menggunakan format PNG membuat st.image bisa langsung menampilkan gambar tanpa error
                 st.image(url, caption=hazard.pictogram_name, use_container_width=True)
             
             st.markdown(render_hazard_badge(hazard.severity), unsafe_allow_html=True)
             st.markdown(f"<small>{hazard.hazard_class}</small>", unsafe_allow_html=True)
-
 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
