@@ -202,57 +202,60 @@ def get_compound_synonyms(cid: int) -> List[str]:
 
 
 def get_ghs_hazards(cid: int) -> List[HazardInfo]:
-    """Mendapatkan data GHS secara menyeluruh tanpa duplikasi dan anti-kosong"""
+    """Mendapatkan informasi bahaya GHS dari PubChem secara akurat untuk piktogram"""
     hazards = []
-    seen_codes = set()       # Melacak kode unik (misal: 'H225')
-    seen_categories = set()  # Melacak kategori fallback (misal: 'Fisika_Flammable')
+    seen_statements = set()
     
-    def extract_from_node(node):
-        """Fungsi pembantu untuk menyisir struktur JSON PubChem secara mendalam"""
-        if isinstance(node, dict):
-            for k, v in node.items():
-                if k == 'String' and isinstance(v, str):
-                    # 1. Deteksi berbasis H-Codes Resmi (Paling Akurat)
-                    if v.startswith('H') and ':' in v:
-                        h_code = v.split(':')[0].strip()
-                        # Pastikan formatnya benar seperti H225, H319
-                        if len(h_code) >= 4 and h_code[1:].isdigit():
-                            if h_code not in seen_codes:
-                                seen_codes.add(h_code)
-                                hazards.append(parse_hazard_code(v))
-                                
-                    # 2. Deteksi berbasis Kata Kunci Teks (Fallback jika H-Code tidak terformat standar)
-                    elif any(kwd in v.lower() for kwd in ['flammable', 'toxic', 'corrosive', 'irritant', 'harmful', 'danger']):
-                        parsed = parse_hazard_statement(v)
-                        cat_key = f"{parsed.hazard_class}_{parsed.category}"
-                        # Hanya masukkan jika kategori bahaya ini belum pernah terdaftar dari H-Code
-                        if cat_key not in seen_categories and parsed.category not in seen_codes:
-                            seen_categories.add(cat_key)
-                            hazards.append(parsed)
-                else:
-                    extract_from_node(v)
-        elif isinstance(node, list):
-            for item in node:
-                extract_from_node(item)
-
     try:
-        # Tembak endpoint utama yang merangkum seluruh data keselamatan PubChem
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards"
-        response = requests.get(url, timeout=12)
+        # Ambil langsung dari heading GHS Classification yang paling valid
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=GHS+Classification"
+        response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
-            extract_from_node(response.json())
-            
-        # Jika ringkasan keselamatan kosong, bongkar seluruh data mentah record sebagai pertahanan terakhir
+            data = response.json()
+            sections = data.get('Record', {}).get('Section', [])
+            for section in sections:
+                subsections = section.get('Section', [])
+                for sub in subsections:
+                    if sub.get('TOCHeading') == 'GHS Classification':
+                        info = sub.get('Information', [])
+                        for item in info:
+                            value = item.get('Value', {})
+                            if 'StringWithMarkup' in value:
+                                for markup in value['StringWithMarkup']:
+                                    string = markup.get('String', '')
+                                    # Skip jika teks hanya berupa nama instansi/sumber data
+                                    if string and not any(x in string.lower() for x in ['pictogram', 'signal word', 'pubchem']):
+                                        clean_str = string.strip()
+                                        if clean_str.lower() not in seen_statements:
+                                            seen_statements.add(clean_str.lower())
+                                            # Lakukan parsing ke objek HazardInfo
+                                            if clean_str.startswith('H') and ':' in clean_str:
+                                                hazards.append(parse_hazard_code(clean_str))
+                                            else:
+                                                hazards.append(parse_hazard_statement(clean_str))
+                                                
+        # Fallback 1: Jika kosong, coba tembak sub-heading Hazard Statements langsung
         if not hazards:
-            url_fallback = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
-            response_fb = requests.get(url_fallback, timeout=12)
-            if response_fb.status_code == 200:
-                extract_from_node(response_fb.json())
+            url_h = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Hazard+Statements"
+            response_h = requests.get(url_h, timeout=10)
+            if response_h.status_code == 200:
+                data_h = response_h.json()
+                sections = data_h.get('Record', {}).get('Section', [])
+                for section in sections:
+                    for sub in section.get('Section', []):
+                        for item in sub.get('Information', []):
+                            for markup in item.get('Value', {}).get('StringWithMarkup', []):
+                                string = markup.get('String', '')
+                                if string.startswith('H') and ':' in string:
+                                    clean_str = string.strip()
+                                    if clean_str.lower() not in seen_statements:
+                                        seen_statements.add(clean_str.lower())
+                                        hazards.append(parse_hazard_code(clean_str))
                                         
     except Exception as e:
-        st.warning(f"Sistem gagal sinkronisasi data GHS: {e}")
-    
+        st.warning(f"Gagal memuat data GHS: {e}")
+        
     return hazards
     
 def parse_hazard_statement(statement: str) -> HazardInfo:
