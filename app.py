@@ -483,25 +483,23 @@ def render_pictograms(hazards: List[HazardInfo]):
         
     detected_codes = set()
     
-    # Perulangan untuk memindai seluruh data bahaya yang ada
     for h in hazards:
         stmt_text = ""
         if h.statement: stmt_text += " " + h.statement.lower()
         if h.pictogram_code: stmt_text += " " + h.pictogram_code.lower()
         if h.pictogram_name: stmt_text += " " + h.pictogram_name.lower()
         
-        # Deteksi Kode Langsung internal objek
+        # PASTIKAN SEMUA MENGGUNAKAN HURUF KECIL SAAT COCOKAN (ghs06 diubah ke kecil)
         if 'ghs01' in stmt_text: detected_codes.add('GHS01')
         if 'ghs02' in stmt_text: detected_codes.add('GHS02')
         if 'ghs03' in stmt_text: detected_codes.add('GHS03')
         if 'ghs04' in stmt_text: detected_codes.add('GHS04')
         if 'ghs05' in stmt_text: detected_codes.add('GHS05')
-        if 'GHS06' in stmt_text: detected_codes.add('GHS06')
+        if 'ghs06' in stmt_text: detected_codes.add('GHS06')
         if 'ghs07' in stmt_text: detected_codes.add('GHS07')
         if 'ghs08' in stmt_text: detected_codes.add('GHS08')
         if 'ghs09' in stmt_text: detected_codes.add('GHS09')
         
-        # Scan kata kunci teks (Fallback mandiri jika kode tidak tersemat)
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text: detected_codes.add('GHS02')
         if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text: detected_codes.add('GHS06')
         if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text: detected_codes.add('GHS05')
@@ -530,7 +528,6 @@ def render_pictograms(hazards: List[HazardInfo]):
         with cols[i % min(len(detected_codes), 4)]:
             if url:
                 st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
-
 
 def get_safety_recommendations(hazards: List[HazardInfo]) -> Dict:
     rec = {'ppe': set(), 'handling': set(), 'storage': set(), 'emergency': set(), 'disposal': set()}
