@@ -55,7 +55,6 @@ st.markdown("""
         color: #e0e0e0 !important;
     }
     
-    /* Kontainer Bahaya dengan warna teks gelap agar terbaca jelas di background pastel */
     .hazard-card {
         padding: 1.5rem;
         border-radius: 12px;
@@ -87,7 +86,7 @@ st.markdown("""
         margin: 6px 0;
         border-radius: 8px;
         font-size: 0.95rem;
-        color: #1a1a1a !important; /* Memaksa teks berwarna gelap */
+        color: #1a1a1a !important;
         font-weight: 500;
     }
     
@@ -102,9 +101,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-# =============================================================================
-# DATA CLASSES
-# =============================================================================
 
 # =============================================================================
 # DATA MODELS
@@ -115,8 +111,8 @@ class HazardInfo:
     pictogram_code: str
     pictogram_name: str
     statement: str
-    severity: str  # 'high', 'medium', 'low'
-    hazard_class: str  # 'Fisika', 'Kesehatan', 'Lingkungan'
+    severity: str         # 'high', 'medium', 'low'
+    hazard_class: str     # 'Fisika', 'Kesehatan', 'Lingkungan'
 
 @dataclass
 class ChemicalCompound:
@@ -126,13 +122,10 @@ class ChemicalCompound:
     molecular_formula: str
     molecular_weight: str
     synonyms: List[str]
+
 # =============================================================================
 # PUBCHEM API FUNCTIONS
 # =============================================================================
-
-BASE_URL = "https://pubchem.ncbi.nlm.nih.gov/rest/pulpug/rest"
-PROLOG = "https://pubchem.ncbi.nlm.nih.gov"
-
 
 def get_cid_by_name(compound_name: str) -> Optional[int]:
     """Mendapatkan CID (Compound ID) dari PubChem berdasarkan nama"""
@@ -164,22 +157,6 @@ def get_compound_properties(cid: int) -> Optional[Dict]:
         return None
 
 
-def get_compound_description(cid: int) -> str:
-    """Mendapatkan deskripsi senyawa"""
-    try:
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Depositor-Supplied+Synonyms"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            sections = data.get('Record', {}).get('Section', [])
-            for section in sections:
-                if section.get('TOCHeading') == 'Names and Identifiers':
-                    return section.get('Description', 'Deskripsi tidak tersedia')
-        return "Deskripsi tidak tersedia"
-    except:
-        return "Deskripsi tidak tersedia"
-
-
 def get_compound_synonyms(cid: int) -> List[str]:
     """Mendapatkan sinonim senyawa"""
     try:
@@ -188,36 +165,31 @@ def get_compound_synonyms(cid: int) -> List[str]:
         if response.status_code == 200:
             data = response.json()
             synonyms = data.get('InformationList', {}).get('Information', [{}])[0].get('Synonym', [])
-            return synonyms[:10]  # Ambil 10 sinonim pertama
+            return synonyms[:10]
         return []
     except:
         return []
 
 
 def get_ghs_hazards(cid: int) -> List[HazardInfo]:
-    """Mendapatkan data bahaya GHS dari PubChem tanpa filter ketat agar tidak kosong"""
+    """Mendapatkan data bahaya GHS dari PubChem secara rekursif menyeluruh"""
     hazards = []
     seen_codes = set()
     
     def parse_json_recursive(node):
-        """Menyisir seluruh isi JSON tanpa peduli struktur heading-nya"""
         if isinstance(node, dict):
             for k, v in node.items():
                 if k == 'String' and isinstance(v, str):
-                    # Deteksi H-code resmi (Contoh: H225, H314)
                     if v.startswith('H') and ':' in v:
                         parts = v.split(':', 1)
                         h_code = parts[0].strip()
-                        # Validasi format kode H standar (Panjang minimal 4 huruf, sisanya angka)
                         if len(h_code) >= 4 and h_code[1:].isdigit():
                             if h_code not in seen_codes:
                                 seen_codes.add(h_code)
                                 hazards.append(parse_hazard_code(v))
-                                
-                    # Deteksi jika teks berisi klausa bahaya langsung tanpa kode titik dua
                     elif any(kwd in v.lower() for kwd in ['flammable', 'toxic', 'corrosive', 'irritant', 'harmful', 'fatal']):
                         parsed = parse_hazard_statement(v)
-                        fake_code = f"{parsed.hazard_class}_{parsed.category}"
+                        fake_code = f"{parsed.hazard_class}_{parsed.statement[:20]}"
                         if fake_code not in seen_codes:
                             seen_codes.add(fake_code)
                             hazards.append(parsed)
@@ -228,35 +200,30 @@ def get_ghs_hazards(cid: int) -> List[HazardInfo]:
                 parse_json_recursive(item)
 
     try:
-        # Ambil ringkasan data Safety & Hazards secara utuh
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards"
         response = requests.get(url, timeout=12)
         if response.status_code == 200:
             parse_json_recursive(response.json())
             
-        # Jika masih kosong, tembak data mentah record compound sebagai pertahanan terakhir
         if not hazards:
             url_fallback = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
             response_fb = requests.get(url_fallback, timeout=12)
             if response_fb.status_code == 200:
                 parse_json_recursive(response_fb.json())
-                
     except Exception as e:
         st.warning(f"Sistem gagal membaca GHS: {e}")
         
     return hazards
-    
+
+
 def parse_hazard_code(hazard_string: str) -> HazardInfo:
-    """Memparsing string H-Code resmi (Contoh: 'H225: Highly flammable liquid and vapor')"""
     parts = hazard_string.split(':', 1)
     code = parts[0].strip()
     statement = parts[1].strip() if len(parts) > 1 else hazard_string
     
-    # Ambil nomor angka dari kode (misal: H225 -> 225)
     code_num_str = ''.join(filter(str.isdigit(), code))
     code_num = int(code_num_str) if code_num_str else 0
     
-    # Tentukan Kelas Bahaya & Severity berdasarkan standar global kode GHS
     if 200 <= code_num <= 299:
         hazard_class = 'Fisika'
         severity = 'high' if code_num in [220, 222, 224, 225, 240, 241] else 'medium'
@@ -270,7 +237,6 @@ def parse_hazard_code(hazard_string: str) -> HazardInfo:
         hazard_class = 'Kesehatan'
         severity = 'medium'
         
-    # Tentukan kode piktogram pencocokan default jika tidak ada dari PubChem
     pic_code = 'GHS07'
     if hazard_class == 'Fisika': pic_code = 'GHS02'
     elif hazard_class == 'Lingkungan': pic_code = 'GHS09'
@@ -288,31 +254,21 @@ def parse_hazard_code(hazard_string: str) -> HazardInfo:
 
 
 def parse_hazard_statement(statement_string: str) -> HazardInfo:
-    """Memparsing teks deskripsi bebas jika tidak diawali dengan kode H- resmi"""
     stmt_lower = statement_string.lower()
-    
-    # Deteksi Kelas Bahaya secara cerdas melalui kata kunci teks
     if any(kwd in stmt_lower for kwd in ['flamm', 'explos', 'oxidiz', 'pyrophor', 'reactive', 'gas under press']):
         hazard_class = 'Fisika'
-        pic_code = 'GHS02' if 'flamm' in stmt_lower else 'GHS01' if 'explos' in stmt_lower else 'GHS03' if 'oxidiz' in stmt_lower else 'GHS04'
-    elif any(kwd in stmt_lower for kwd in ['aquatic', 'environment', 'pollut', 'toxic to aqua']):
+        pic_code = 'GHS02' if 'flamm' in stmt_lower else 'GHS01' if 'explos' in stmt_lower else 'GHS03'
+    elif any(kwd in stmt_lower for kwd in ['aquatic', 'environment', 'pollut']):
         hazard_class = 'Lingkungan'
         pic_code = 'GHS09'
     else:
         hazard_class = 'Kesehatan'
         if any(kwd in stmt_lower for kwd in ['corros', 'skin burn', 'eye damag']): pic_code = 'GHS05'
         elif any(kwd in stmt_lower for kwd in ['fatal', 'acute tox', 'poison']): pic_code = 'GHS06'
-        elif any(kwd in stmt_lower for kwd in ['carcinogen', 'mutagen', 'cancer', 'respiratory sensitiz']): pic_code = 'GHS08'
+        elif any(kwd in stmt_lower for kwd in ['carcinogen', 'mutagen']): pic_code = 'GHS08'
         else: pic_code = 'GHS07'
 
-    # Deteksi Tingkat Keparahan
-    if any(kwd in stmt_lower for kwd in ['fatal', 'danger', 'severe', 'highly', 'category 1', 'category 2']):
-        severity = 'high'
-    elif any(kwd in stmt_lower for kwd in ['warning', 'harmful', 'irritat', 'category 3']):
-        severity = 'medium'
-    else:
-        severity = 'low'
-        
+    severity = 'high' if any(kwd in stmt_lower for kwd in ['fatal', 'danger', 'severe']) else 'medium'
     return HazardInfo(
         pictogram_code=pic_code,
         pictogram_name=f"Bahaya {hazard_class}",
@@ -323,7 +279,6 @@ def parse_hazard_statement(statement_string: str) -> HazardInfo:
 
 
 def get_pictogram_url(pictogram_code: str) -> str:
-    """Mendapatkan URL gambar piktogram GHS format PNG resmi yang stabil dan kompatibel"""
     pictogram_urls = {
         'GHS01': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/GHS-pictogram-explos.svg/240px-GHS-pictogram-explos.svg.png',
         'GHS02': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/GHS-pictogram-flamme.svg/240px-GHS-pictogram-flamme.svg.png',
@@ -335,126 +290,14 @@ def get_pictogram_url(pictogram_code: str) -> str:
         'GHS08': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/GHS-pictogram-silhouette.svg/240px-GHS-pictogram-silhouette.svg.png',
         'GHS09': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/GHS-pictogram-pollu.svg/240px-GHS-pictogram-pollu.svg.png',
     }
-    return pictogram_urls.get(pictogram_code, '')
+    return pictogram_urls.get(pictogram_code.upper(), '')
+
 
 def get_compound_2d_structure(cid: int) -> Optional[str]:
-    """Mendapatkan URL gambar struktur 2D senyawa"""
     return f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/PNG?image_size=large"
 
 
-def get_safety_recommendations(hazards: List[HazardInfo]) -> Dict:
-    """Menghasilkan rekomendasi keselamatan berdasarkan bahaya"""
-    recommendations = {
-        'ppe': set(),
-        'handling': set(),
-        'storage': set(),
-        'emergency': set(),
-        'disposal': set()
-    }
-    
-    for hazard in hazards:
-        code = hazard.pictogram_code
-        
-        # PPE recommendations
-        if code in ['GHS05', 'GHS06']:
-            recommendations['ppe'].add('Sarung tangan tahan bahan kimia (neoprena/nitril)')
-            recommendations['ppe'].add('Kacamata pelindung / face shield')
-            recommendations['ppe'].add('Jas laboratorium tahan bahan kimia')
-            recommendations['ppe'].add('Respirator (jika terdapat uap/aerosol)')
-        elif code in ['GHS08', 'GHS07']:
-            recommendations['ppe'].add('Sarung tangan pelindung')
-            recommendations['ppe'].add('Kacamata pelindung')
-            recommendations['ppe'].add('Jas laboratorium')
-        elif code in ['GHS02', 'GHS03']:
-            recommendations['ppe'].add('Sarung tangan tahan panas')
-            recommendations['ppe'].add('Kacamata pelindung')
-            recommendations['ppe'].add('Pakaian anti api')
-        
-        # Handling recommendations
-        if code in ['GHS06', 'GHS05']:
-            recommendations['handling'].add('Gunakan di dalam lemari asam/fume hood')
-            recommendations['handling'].add('Hindari kontak langsung dengan kulit dan mata')
-            recommendations['handling'].add('Jangan makan, minum, atau merokok saat menangani')
-            recommendations['handling'].add('Cuci tangan segera setelah menangani')
-        elif code == 'GHS02':
-            recommendations['handling'].add('Jauhkan dari sumber api dan panas')
-            recommendations['handling'].add('Gunakan peralatan anti percikan api')
-            recommendations['handling'].add('Pastikan ventilasi yang baik')
-        elif code == 'GHS03':
-            recommendations['handling'].add('Jauhkan dari bahan mudah terbakar')
-            recommendations['handling'].add('Hindari kontak dengan bahan organik')
-        
-        # Storage recommendations
-        if code == 'GHS02':
-            recommendations['storage'].add('Simpan di tempat sejuk dan kering')
-            recommendations['storage'].add('Jauhkan dari sumber api dan oksidator')
-            recommendations['storage'].add('Gunakan lemari penyimpanan bahan mudah terbakar')
-        elif code in ['GHS06', 'GHS05']:
-            recommendations['storage'].add('Simpan di lemari keamanan bahan kimia')
-            recommendations['storage'].add('Kunci dan beri label dengan jelas')
-            recommendations['storage'].add('Pisahkan dari bahan yang tidak kompatibel')
-        elif code == 'GHS09':
-            recommendations['storage'].add('Simpan di area kedap tumpah')
-            recommendations['storage'].add('Pisahkan dari saluran pembuangan')
-        
-        # Emergency recommendations
-        if code in ['GHS06', 'GHS05']:
-            recommendations['emergency'].add('Tersedia stasiun pencuci mata dan safety shower')
-            recommendations['emergency'].add('Tersedia kotak P3K dengan antidot spesifik')
-            recommendations['emergency'].add('Ketahui nomor darurat: 118 (Pemadam), 119 (Ambulans)')
-        if code == 'GHS05':
-            recommendations['emergency'].add('Jika terkena kulit: Bilas dengan air minimal 15 menit')
-            recommendations['emergency'].add('Jika terkena mata: Bilas mata segera dengan air bersih')
-        
-        # Disposal recommendations
-        if code in ['GHS06', 'GHS05', 'GHS09']:
-            recommendations['disposal'].add('Buang sebagai limbah B3 (Bahan Berbahaya dan Beracun)')
-            recommendations['disposal'].add('Ikuti regulasi pembuangan limbah kimia setempat')
-            recommendations['disposal'].add('Jangan buang ke saluran pembuangan umum')
-        else:
-            recommendations['disposal'].add('Buang sesuai regulasi limbah kimia')
-    
-    return {k: list(v) for k, v in recommendations.items()}
-
-
-def get_all_hazard_info(cid: int) -> List[Dict]:
-    """Mendapatkan semua informasi bahaya dari PubChem"""
-    all_hazards = []
-    try:
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Hazard+Statements"
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            sections = data.get('Record', {}).get('Section', [])
-            for section in sections:
-                for sub in section.get('Section', []):
-                    for subsub in sub.get('Section', []):
-                        info = subsub.get('Information', [])
-                        for item in info:
-                            value = item.get('Value', {})
-                            if 'StringWithMarkup' in value:
-                                for markup in value['StringWithMarkup']:
-                                    string = markup.get('String', '')
-                                    if string and string.startswith('H'):
-                                        parts = string.split(': ', 1)
-                                        if len(parts) == 2:
-                                            all_hazards.append({
-                                                'code': parts[0].strip(),
-                                                'statement': parts[1].strip()
-                                            })
-                                        else:
-                                            all_hazards.append({
-                                                'code': string[:4] if string.startswith('H') else 'N/A',
-                                                'statement': string
-                                            })
-    except:
-        pass
-    
-    return all_hazards
-
-
 def get_precautionary_statements(cid: int) -> List[str]:
-    """Mendapatkan pernyataan pencegahan (P-codes)"""
     precautions = []
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Precautionary+Statement+Codes"
@@ -464,8 +307,7 @@ def get_precautionary_statements(cid: int) -> List[str]:
             sections = data.get('Record', {}).get('Section', [])
             for section in sections:
                 for sub in section.get('Section', []):
-                    info = sub.get('Information', [])
-                    for item in info:
+                    for item in sub.get('Information', []):
                         value = item.get('Value', {})
                         if 'StringWithMarkup' in value:
                             for markup in value['StringWithMarkup']:
@@ -474,13 +316,11 @@ def get_precautionary_statements(cid: int) -> List[str]:
                                     precautions.append(string)
     except:
         pass
-    
     return precautions
 
 
 def get_nfpa_diamond(cid: int) -> Dict:
-    """Mendapatkan rating NFPA 704 Diamond (jika tersedia)"""
-    nfpa = {'health': 'N/A', 'flammability': 'N/A', 'reactivity': 'N/A', 'special': ''}
+    nfpa = {'health': '0', 'flammability': '0', 'reactivity': '0', 'special': ''}
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=NFPA+704+Diamond"
         response = requests.get(url, timeout=10)
@@ -488,28 +328,21 @@ def get_nfpa_diamond(cid: int) -> Dict:
             data = response.json()
             sections = data.get('Record', {}).get('Section', [])
             for section in sections:
-                info = section.get('Information', [])
-                for item in info:
+                for item in section.get('Information', []):
                     value = item.get('Value', {})
                     if 'StringWithMarkup' in value:
                         for markup in value['StringWithMarkup']:
                             string = markup.get('String', '')
-                            if 'Health' in string:
-                                nfpa['health'] = string.split(':')[-1].strip()
-                            elif 'Flammability' in string:
-                                nfpa['flammability'] = string.split(':')[-1].strip()
-                            elif 'Stability' in string or 'Reactivity' in string:
-                                nfpa['reactivity'] = string.split(':')[-1].strip()
-                            elif 'Special' in string:
-                                nfpa['special'] = string.split(':')[-1].strip()
+                            if 'Health' in string: nfpa['health'] = string.split(':')[-1].strip()
+                            elif 'Flammability' in string: nfpa['flammability'] = string.split(':')[-1].strip()
+                            elif 'Stability' in string or 'Reactivity' in string: nfpa['reactivity'] = string.split(':')[-1].strip()
+                            elif 'Special' in string: nfpa['special'] = string.split(':')[-1].strip()
     except:
         pass
-    
     return nfpa
 
 
 def get_cas_number(cid: int) -> str:
-    """Mendapatkan nomor CAS"""
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/xrefs/RegistryID/JSON"
         response = requests.get(url, timeout=10)
@@ -518,9 +351,7 @@ def get_cas_number(cid: int) -> str:
             registry_ids = data.get('InformationList', {}).get('Information', [{}])[0].get('RegistryID', [])
             for rid in registry_ids:
                 if '-' in rid and len(rid.split('-')) == 3:
-                    parts = rid.split('-')
-                    if all(p.isdigit() for p in parts[:2]) and (parts[2].isdigit() or len(parts[2]) == 1):
-                        return rid
+                    return rid
             return registry_ids[0] if registry_ids else 'N/A'
         return 'N/A'
     except:
@@ -528,11 +359,10 @@ def get_cas_number(cid: int) -> str:
 
 
 # =============================================================================
-# UI COMPONENTS
+# UI RENDER COMPONENTS
 # =============================================================================
 
 def render_header():
-    """Render header aplikasi"""
     st.markdown("""
     <div class="main-header">
         <h1>⚗️ Chemical Hazard Identifier</h1>
@@ -541,180 +371,102 @@ def render_header():
     """, unsafe_allow_html=True)
 
 
-def render_search_section() -> str:
-    """Render bagian pencarian"""
+def render_search_section() -> tuple:
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    
     col1, col2 = st.columns([4, 1])
-    
     with col1:
         search_query = st.text_input(
             "Masukkan Nama Senyawa / Rumus Molekul / CID PubChem",
             placeholder="Contoh: methanol, H2SO4, ethanol, sodium hydroxide, acetone...",
             label_visibility="collapsed"
         )
-    
     with col2:
         search_button = st.button("🔍 Identifikasi", type="primary", use_container_width=True)
-    
     st.markdown('</div>', unsafe_allow_html=True)
-    
     return search_query, search_button
 
 
 def render_sidebar():
-    """Render sidebar informasi"""
     with st.sidebar:
         st.markdown("""
         <div style="text-align: center; padding: 1rem 0;">
-            <h2 style="color: #0f3460;">⚗️ ChemHazard ID</h2>
-            <p style="font-size: 0.9rem; color: #666;">Aplikasi Identifikasi Bahaya Kimia</p>
+            <h2 style="color: #4f46e5;">⚗️ ChemHazard ID</h2>
+            <p style="font-size: 0.9rem; color: #888;">Aplikasi Identifikasi Bahaya Kimia</p>
         </div>
         """, unsafe_allow_html=True)
-        
         st.divider()
-        
         st.markdown("""
         ### 📖 Panduan Penggunaan
-        
         **1. Masukkan Nama Senyawa**
         - Ketik nama senyawa kimia (bahasa Inggris)
         - Atau masukkan rumus molekul (contoh: H2SO4)
-        - Atau nomor CID PubChem
         
         **2. Klik "Identifikasi"**
-        - Aplikasi akan mencari database PubChem
-        - Menampilkan informasi bahaya GHS
-        
-        **3. Lihat Hasil**
-        - Properti fisikokimia
-        - Klasifikasi bahaya GHS
-        - Pictogram bahaya
-        - Rekomendasi keselamatan
+        - Sistem akan menyisir database PubChem
         
         ### 📋 Contoh Senyawa
         - Methanol, Ethanol, Acetone
         - Sulfuric acid (H2SO4)
         - Sodium hydroxide (NaOH)
-        - Hydrogen peroxide (H2O2)
-        - Benzene, Toluene, Xylene
-        - Formaldehyde, Acetic acid
-        - Ammonia, Chlorine gas
-        
-        ### ⚠️ Disclaimer
-        Aplikasi ini menggunakan data dari **PubChem NIH** dan **GHS Classification**. 
-        Selalu rujuk SDS (Safety Data Sheet) resmi untuk informasi keselamatan yang lengkap.
-        
-        **Sumber Data:**
-        - PubChem (NCBI/NIH)
-        - Globally Harmonized System (GHS)
-        - Wikipedia Commons (Pictograms)
         """)
-        
         st.divider()
-        
         st.markdown("""
-        <div class="sidebar-info">
         <b>Legenda Tingkat Bahaya:</b><br>
-        🔴 <b>Tinggi</b> - Bahaya serius, penanganan khusus diperlukan<br>
-        🟡 <b>Sedang</b> - Bahaya moderat, perlindungan standar<br>
-        🟢 <b>Rendah</b> - Bahaya minimal, tetap berhati-hati
-        </div>
+        🔴 <b>Tinggi</b> - Bahaya serius<br>
+        🟡 <b>Sedang</b> - Bahaya moderat<br>
+        🟢 <b>Rendah</b> - Bahaya minimal
         """, unsafe_allow_html=True)
 
 
 def render_hazard_badge(severity: str) -> str:
-    """Render badge tingkat bahaya"""
-    colors = {
-        'high': ('🔴', '#f44336', 'Tinggi'),
-        'medium': ('🟡', '#ff9800', 'Sedang'),
-        'low': ('🟢', '#4caf50', 'Rendah')
-    }
+    colors = {'high': ('🔴', '#f44336', 'Tinggi'), 'medium': ('🟡', '#ff9800', 'Sedang'), 'low': ('🟢', '#4caf50', 'Rendah')}
     emoji, color, label = colors.get(severity, ('⚪', '#9e9e9e', 'Tidak Diketahui'))
     return f'<span style="background-color: {color}; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">{emoji} {label}</span>'
 
 
 def render_compound_overview(compound: ChemicalCompound):
-    """Render overview senyawa"""
-    st.markdown('<div class="result-container">', unsafe_allow_html=True)
-    
     col1, col2 = st.columns([1, 2])
-    
     with col1:
-        # Tampilkan struktur 2D
         structure_url = get_compound_2d_structure(compound.cid)
         try:
             response = requests.get(structure_url, timeout=10)
             if response.status_code == 200:
-                img = Image.open(BytesIO(response.content))
-                st.image(img, caption=f"Struktur 2D: {compound.name}", use_container_width=True)
+                st.image(Image.open(BytesIO(response.content)), caption=f"Struktur 2D: {compound.name}", use_container_width=True)
             else:
                 st.info("Gambar struktur tidak tersedia")
         except:
             st.info("Gambar struktur tidak dapat dimuat")
-    
+            
     with col2:
         st.markdown(f"""
         <div class="info-card">
-            <h2 style="color: #0f3460; margin-bottom: 1rem;">{compound.name}</h2>
-            <p style="color: #666; font-style: italic; margin-bottom: 1rem;">{compound.iupac_name}</p>
+            <h2 style="color: #4f46e5; margin-bottom: 0.5rem;">{compound.name}</h2>
+            <p style="color: #aaa; font-style: italic;">IUPAC: {compound.iupac_name}</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Tabel properti
         properties_data = {
-            'Properti': [
-                'CID PubChem',
-                'Nama IUPAC',
-                'Rumus Molekul',
-                'Massa Molekul',
-                'Nomor CAS'
-            ],
-            'Nilai': [
-                str(compound.cid),
-                compound.iupac_name,
-                f"<b>{compound.molecular_formula}</b>",
-                f"{float(compound.molecular_weight):.3f} g/mol" if compound.molecular_weight else 'N/A',
-                get_cas_number(compound.cid)
-            ]
+            'Properti': ['CID PubChem', 'Rumus Molekul', 'Massa Molekul', 'Nomor CAS'],
+            'Nilai': [str(compound.cid), f"<b>{compound.molecular_formula}</b>", f"{float(compound.molecular_weight):.3f} g/mol" if compound.molecular_weight else 'N/A', get_cas_number(compound.cid)]
         }
-        
-        df = pd.DataFrame(properties_data)
-        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(pd.DataFrame(properties_data).to_html(escape=False, index=False), unsafe_allow_html=True)
 
 
 def render_physical_properties(properties: Dict):
-    """Render properti fisikokimia"""
-    if not properties:
-        st.info("Data properti fisikokimia tidak tersedia")
-        return
-    
-    st.markdown("### 📊 Properti Fisikokimia")
-    
+    if not properties: return
+    st.markdown("### 📊 Properti Fisikokimia Tambahan")
     props = {
-        'Massa Molekul': f"{properties.get('MolecularWeight', 'N/A')} g/mol",
-        'Rumus Molekul': properties.get('MolecularFormula', 'N/A'),
-        'Nama IUPAC': properties.get('IUPACName', 'N/A'),
-        'Muatan': str(properties.get('Charge', 'N/A')),
-        'Donor Ikatan H': str(properties.get('HBondDonorCount', 'N/A')),
-        'Akseptor Ikatan H': str(properties.get('HBondAcceptorCount', 'N/A')),
-        'Ikatan Rotatable': str(properties.get('RotatableBondCount', 'N/A')),
-        'TPSA': f"{properties.get('TPSA', 'N/A')} Å²" if properties.get('TPSA') else 'N/A',
-        'XLogP': str(properties.get('XLogP', 'N/A')),
-        'SMILES Isomerik': properties.get('IsomericSMILES', 'N/A')[:50] + '...' if properties.get('IsomericSMILES') and len(properties.get('IsomericSMILES')) > 50 else properties.get('IsomericSMILES', 'N/A')
+        'Donor Ikatan H': str(properties.get('HBondDonorCount', '0')),
+        'Akseptor Ikatan H': str(properties.get('HBondAcceptorCount', '0')),
+        'TPSA': f"{properties.get('TPSA', 'N/A')} Å²",
+        'XLogP': str(properties.get('XLogP', 'N/A'))
     }
-    
-    # Buat 3 kolom
-    cols = st.columns(3)
-    items = list(props.items())
-    for i, (key, value) in enumerate(items):
-        with cols[i % 3]:
+    cols = st.columns(4)
+    for i, (key, value) in enumerate(props.items()):
+        with cols[i]:
             st.markdown(f"""
-            <div style="background: #f5f5f5; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
-                <small style="color: #666;">{key}</small><br>
-                <b style="color: #333;">{value}</b>
+            <div style="background: #262730; padding: 12px; border-radius: 8px; border: 1px solid #464855; text-align: center;">
+                <small style="color: #aaa;">{key}</small><br><b style="color: white; font-size: 1.1rem;">{value}</b>
             </div>
             """, unsafe_allow_html=True)
 
@@ -729,26 +481,25 @@ def render_pictograms(hazards: List[HazardInfo]):
         
     detected_codes = set()
     
+    # Perulangan untuk memindai seluruh data bahaya yang ada
     for h in hazards:
-        # Satukan semua teks dari properti objek untuk discan kata kuncinya
         stmt_text = ""
         if h.statement: stmt_text += " " + h.statement.lower()
         if h.pictogram_code: stmt_text += " " + h.pictogram_code.lower()
         if h.pictogram_name: stmt_text += " " + h.pictogram_name.lower()
         
-      # === UBAH BAGIAN INI MENJADI HURUF KECIL ===
-    # Deteksi Kode Langsung
-    if 'ghs01' in stmt_text: detected_codes.add('GHS01')
-    if 'ghs02' in stmt_text: detected_codes.add('GHS02')
-    if 'ghs03' in stmt_text: detected_codes.add('GHS03')
-    if 'ghs04' in stmt_text: detected_codes.add('GHS04')
-    if 'ghs05' in stmt_text: detected_codes.add('GHS05')
-    if 'ghs06' in stmt_text: detected_codes.add('GHS06')
-    if 'ghs07' in stmt_text: detected_codes.add('GHS07')
-    if 'ghs08' in stmt_text: detected_codes.add('GHS08')
-    if 'ghs09' in stmt_text: detected_codes.add('GHS09')
+        # Deteksi Kode Langsung internal objek
+        if 'ghs01' in stmt_text: detected_codes.add('GHS01')
+        if 'ghs02' in stmt_text: detected_codes.add('GHS02')
+        if 'ghs03' in stmt_text: detected_codes.add('GHS03')
+        if 'ghs04' in stmt_text: detected_codes.add('GHS04')
+        if 'ghs05' in stmt_text: detected_codes.add('GHS05')
+        if 'GHS06' in stmt_text: detected_codes.add('GHS06')
+        if 'ghs07' in stmt_text: detected_codes.add('GHS07')
+        if 'ghs08' in stmt_text: detected_codes.add('GHS08')
+        if 'ghs09' in stmt_text: detected_codes.add('GHS09')
         
-        # Scan Kata Kunci (Sangat berguna jika PubChem mengembalikan teks deskripsi murni)
+        # Scan kata kunci teks (Fallback mandiri jika kode tidak tersemat)
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text: detected_codes.add('GHS02')
         if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text: detected_codes.add('GHS06')
         if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text: detected_codes.add('GHS05')
@@ -756,374 +507,146 @@ def render_pictograms(hazards: List[HazardInfo]):
         if 'oxidiz' in stmt_text: detected_codes.add('GHS03')
         if 'gas under press' in stmt_text or 'compressed gas' in stmt_text: detected_codes.add('GHS04')
         if 'irritat' in stmt_text or 'harmful' in stmt_text or 'sensitiz' in stmt_text: detected_codes.add('GHS07')
-        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'respiratory' in stmt_text or 'target organ' in stmt_text: detected_codes.add('GHS08')
-        if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text: detected_codes.add('GHS09')
+        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'target organ' in stmt_text: detected_codes.add('GHS08')
+        if 'aquatic' in stmt_text or 'environment' in stmt_text: detected_codes.add('GHS09')
 
     if not detected_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
         return
         
     ghs_names = {
-        'GHS01': 'Explosive (Mudah Meledak)',
-        'GHS02': 'Flammable (Mudah Terbakar)',
-        'GHS03': 'Oxidizing (Pengoksidasi)',
-        'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
-        'GHS05': 'Corrosive (Korosif / Merusak)',
-        'GHS06': 'Acute Toxicity (Beracun)',
-        'GHS07': 'Harmful / Irritant (Iritasi / Bahaya Ringan)',
-        'GHS08': 'Health Hazard (Bahaya Kesehatan Kronis)',
+        'GHS01': 'Explosive (Mudah Meledak)', 'GHS02': 'Flammable (Mudah Terbakar)',
+        'GHS03': 'Oxidizing (Pengoksidasi)', 'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
+        'GHS05': 'Corrosive (Korosif / Merusak)', 'GHS06': 'Acute Toxicity (Beracun)',
+        'GHS07': 'Harmful / Irritant (Iritasi)', 'GHS08': 'Health Hazard (Bahaya Kronis)',
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
     
-    # Render gambar ke dalam grid Streamlit
     cols = st.columns(min(len(detected_codes), 4))
     for i, code in enumerate(sorted(list(detected_codes))):
         url = get_pictogram_url(code)
-        with cols[i % 4]:
+        with cols[i % min(len(detected_codes), 4)]:
             if url:
                 st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
 
-with tabs[0]:
-        if hazards: # Menggunakan list hazards ter-parsing yang dikirim dari main()
-            for h in hazards:
-                bg_color = '#ffcdd2' if h.severity == 'high' else '#ffe082' if h.severity == 'medium' else '#c8e6c9'
-                border_color = '#b71c1c' if h.severity == 'high' else '#e65100' if h.severity == 'medium' else '#1b5e20'
-                
-                st.markdown(f"""
-                <div style="background: {bg_color}; border-left: 5px solid {border_color}; padding: 12px 15px; margin: 6px 0; border-radius: 0 8px 8px 0; color: #1a1a1a !important; font-weight: 500;">
-                    {h.statement} {render_hazard_badge(h.severity)}
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("Data klasifikasi bahaya GHS tidak tersedia untuk senyawa ini")
 
-def render_nfpa_diamond(cid: int):
-    """Render NFPA 704 Diamond"""
-    nfpa = get_nfpa_diamond(cid)
+def get_safety_recommendations(hazards: List[HazardInfo]) -> Dict:
+    rec = {'ppe': set(), 'handling': set(), 'storage': set(), 'emergency': set(), 'disposal': set()}
+    for h in hazards:
+        code = h.pictogram_code
+        if code in ['GHS05', 'GHS06']:
+            rec['ppe'].update(['Sarung tangan kimia (Nitril/Neoprena)', 'Kacamata goggle / Face shield', 'Jas lab lengan panjang'])
+            rec['handling'].update(['Wajib gunakan di dalam lemari asam (Fume Hood)', 'Hindari hirup uap gas langsung'])
+        if code == 'GHS02':
+            rec['handling'].update(['Jauhkan dari percikan api, panas, dan permukaan panas', 'Dilarang merokok di sekitar area'])
+            rec['storage'].update(['Simpan di lemari khusus bahan mudah terbakar (Flammable Cabinet)', 'Tempatkan di ruangan sejuk'])
+        if code == 'GHS09':
+            rec['disposal'].update(['Buang sebagai Limbah B3 resmi', 'Jangan buang langsung ke wastafel / saluran air'])
     
-    st.markdown("### 🔷 NFPA 704 Diamond")
+    # Standar fallback perlindungan umum
+    if not rec['ppe']: rec['ppe'].update(['Kacamata keselamatan standar', 'Sarung tangan pelindung', 'Jas laboratorium'])
+    if not rec['handling']: rec['handling'].update(['Tangani dengan prinsip kehati-hatian laboratorium standar'])
+    if not rec['storage']: rec['storage'].update(['Simpan di wadah tertutup rapat pada area kering'])
+    if not rec['emergency']: rec['emergency'].update(['Bilas dengan air mengalir jika terpapar kontak langsung', 'Gunakan APAR yang sesuai jika terjadi api'])
+    if not rec['disposal']: rec['disposal'].update(['Kumpulkan ke dalam wadah jeriken limbah kimia terpisah'])
     
-    col1, col2, col3 = st.columns([1, 1, 1])
-    
-    with col1:
-        st.metric("🔴 Health", nfpa['health'])
-    with col2:
-        st.metric("🔥 Flammability", nfpa['flammability'])
-    with col3:
-        st.metric("💥 Reactivity", nfpa['reactivity'])
-    
-    if nfpa['special']:
-        st.info(f"**Special Hazard:** {nfpa['special']}")
-
-
-def render_precautionary_statements(cid: int):
-    """Render pernyataan pencegahan"""
-    precautions = get_precautionary_statements(cid)
-    
-    if not precautions:
-        return
-    
-    st.markdown("### 🛡️ Pernyataan Pencegahan (P-Codes)")
-    
-    general = [p for p in precautions if p.startswith('P1') or p.startswith('P0')]
-    prevention = [p for p in precautions if p.startswith('P2')]
-    response_group = [p for p in precautions if p.startswith('P3')]
-    storage = [p for p in precautions if p.startswith('P4')]
-    disposal = [p for p in precautions if p.startswith('P5')]
-    
-    tabs = st.tabs(['Umum', 'Pencegahan', 'Respons', 'Penyimpanan', 'Pembuangan'])
-    
-    with tabs[0]:
-        for p in general[:10]:
-            st.markdown(f'<div class="precautionary-statement">{p}</div>', unsafe_allow_html=True)
-    with tabs[1]:
-        for p in prevention[:10]:
-            st.markdown(f'<div class="precautionary-statement">{p}</div>', unsafe_allow_html=True)
-    with tabs[2]:
-        for p in response_group[:10]:
-            st.markdown(f'<div class="precautionary-statement">{p}</div>', unsafe_allow_html=True)
-    with tabs[3]:
-        for p in storage[:10]:
-            st.markdown(f'<div class="precautionary-statement">{p}</div>', unsafe_allow_html=True)
-    with tabs[4]:
-        for p in disposal[:10]:
-            st.markdown(f'<div class="precautionary-statement">{p}</div>', unsafe_allow_html=True)
-
-
-def render_safety_recommendations(hazards: List[HazardInfo]):
-    """Render rekomendasi keselamatan"""
-    recommendations = get_safety_recommendations(hazards)
-    
-    st.markdown("""
-    <div class="safety-section">
-        <h3 style="color: #1565c0; margin-bottom: 1rem;">🛡️ Rekomendasi Keselamatan</h3>
-    """, unsafe_allow_html=True)
-    
-    tabs = st.tabs(['👷 APD / PPE', '⚙️ Penanganan', '📦 Penyimpanan', '🚨 Darurat', '🗑️ Pembuangan'])
-    
-    with tabs[0]:
-        if recommendations['ppe']:
-            for item in recommendations['ppe']:
-                st.markdown(f"- {item}")
-        else:
-            st.info("Gunakan APD standar laboratorium (jas lab, kacamata pelindung, sarung tangan)")
-    
-    with tabs[1]:
-        if recommendations['handling']:
-            for item in recommendations['handling']:
-                st.markdown(f"- {item}")
-        else:
-            st.info("Ikuti prosedur penanganan bahan kimia standar")
-    
-    with tabs[2]:
-        if recommendations['storage']:
-            for item in recommendations['storage']:
-                st.markdown(f"- {item}")
-        else:
-            st.info("Simpan sesuai regulasi bahan kimia umum")
-    
-    with tabs[3]:
-        if recommendations['emergency']:
-            for item in recommendations['emergency']:
-                st.markdown(f"- {item}")
-        else:
-            st.info("Tersedia stasiun pencuci mata dan safety shower")
-    
-    with tabs[4]:
-        if recommendations['disposal']:
-            for item in recommendations['disposal']:
-                st.markdown(f"- {item}")
-        else:
-            st.info("Buang sesuai regulasi limbah kimia setempat")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-def render_synonyms(synonyms: List[str]):
-    """Render sinonim senyawa dengan warna teks tegas dan kontras tinggi di tema gelap/terang"""
-    if not synonyms:
-        return
-    
-    st.markdown("### 🏷️ Sinonim")
-    synonym_cols = st.columns(5)
-    for i, syn in enumerate(synonyms[:15]):
-        with synonym_cols[i % 5]:
-            # Menggunakan warna background biru indigo gelap dengan teks putih tebal agar terbaca
-            st.markdown(f"""
-            <div style="
-                background-color: #3f51b5; 
-                color: #ffffff !important; 
-                padding: 6px 12px; 
-                border-radius: 20px; 
-                font-size: 0.85rem; 
-                font-weight: 600; 
-                text-align: center; 
-                margin: 4px 0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            " title="{syn}">
-                {syn}
-            </div>
-            """, unsafe_allow_html=True)
+    return {k: list(v) for k, v in rec.items()}
 
 
 def render_footer():
-    """Render footer"""
-    st.markdown("""
-    <div class="footer">
-        <p>⚗️ Chemical Hazard Identifier | Powered by <b>PubChem NIH API</b> & <b>GHS Classification</b></p>
-        <p style="font-size: 0.8rem;">
-        Data disediakan oleh National Center for Biotechnology Information (NCBI).<br>
-        Selalu rujuk SDS (Safety Data Sheet) resmi untuk informasi keselamatan yang lengkap dan akurat.
-        </p>
-        <p style="font-size: 0.75rem; margin-top: 1rem;">
-        Dibuat dengan ❤️ menggunakan Streamlit | © 2024
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def render_quick_search():
-    """Render tombol pencarian cepat senyawa umum yang langsung berfungsi"""
-    st.markdown("### 🔥 Pencarian Cepat")
-    
-    common_compounds = [
-        ('Methanol', '⚗️'),
-        ('Ethanol', '🍷'),
-        ('Acetone', '💅'),
-        ('Sulfuric acid', '🧪'),
-        ('Hydrochloric acid', '🧪'),
-        ('Sodium hydroxide', '🧂'),
-        ('Hydrogen peroxide', '💧'),
-        ('Benzene', '⛽'),
-        ('Formaldehyde', '🏠'),
-        ('Ammonia', '💨'),
-        ('Toluene', '🎨'),
-        ('Nitric acid', '🧪'),
-    ]
-    
-    cols = st.columns(4)
-    for i, (name, icon) in enumerate(common_compounds):
-        with cols[i % 4]:
-            # Ketika tombol diklik, langsung set 'search_input' dan trigger rerun
-            if st.button(f"{icon} {name}", key=f"quick_{i}", use_container_width=True):
-                st.session_state['search_input'] = name
-                st.session_state['trigger_search'] = True
-                st.rerun()
+    st.markdown("<p style='text-align: center; color: #666; font-size: 0.8rem;'>ChemHazard ID v2.5 © 2026 | Powered by PubChem API</p>", unsafe_allow_html=True)
 
 # =============================================================================
-# MAIN APPLICATION
+# MAIN APPLICATION LOGIC
 # =============================================================================
 
 def main():
-    """Fungsi utama aplikasi"""
-    
-    # Render header
     render_header()
-    
-    # Render sidebar
     render_sidebar()
     
-    # Render pencarian cepat
-    render_quick_search()
-    
-    # Render bagian pencarian
-    st.markdown("### 🔍 Cari Senyawa Kimia")
-    
-    quick_search = st.session_state.get('quick_search', '')
-    
-    search_query = st.text_input(
-        "Nama Senyawa / Rumus / CID",
-        value=quick_search,
-        placeholder="Contoh: methanol, sulfuric acid, NaOH, 702 (CID)...",
-        key="search_input"
-    )
-    
-    search_button = st.button("🔍 Identifikasi Bahaya", type="primary", use_container_width=True)
-    
-    if quick_search:
-        del st.session_state['quick_search']
+    search_query, search_button = render_search_section()
     
     if search_button and search_query.strip():
-        with st.spinner("🔬 Menganalisis senyawa dan mengidentifikasi bahaya..."):
+        with st.spinner("Menghubungkan ke server PubChem..."):
+            query = search_query.strip()
+            cid = None
             
-            if search_query.strip().isdigit():
-                cid = int(search_query.strip())
+            if query.isdigit():
+                cid = int(query)
             else:
-                cid = get_cid_by_name(search_query.strip())
-            
-            if cid:
-                properties = get_compound_properties(cid)
+                cid = get_cid_by_name(query)
                 
-                if properties:
+            if cid:
+                props = get_compound_properties(cid)
+                if props:
                     synonyms = get_compound_synonyms(cid)
-                    hazards = get_ghs_hazards(cid)
-                    
-                    # Logika penentuan nama tampilan agar angka CID berubah menjadi nama asli senyawa kimia
-                    compound_name = synonyms[0].title() if (search_query.strip().isdigit() and synonyms) else search_query.strip().title()
-                    
                     compound = ChemicalCompound(
                         cid=cid,
-                        name=compound_name,
-                        iupac_name=properties.get('IUPACName', 'N/A'),
-                        molecular_formula=properties.get('MolecularFormula', 'N/A'),
-                        molecular_weight=properties.get('MolecularWeight', 0.0),
-                        synonyms=synonyms,
-                        description='',
-                        hazards=hazards,
-                        physical_properties=properties if properties else {},
-                        safety_info={},
-                        pictogram_urls=[]
+                        name=props.get('IUPACName', query.capitalize()),
+                        iupac_name=props.get('IUPACName', 'N/A'),
+                        molecular_formula=props.get('MolecularFormula', 'N/A'),
+                        molecular_weight=props.get('MolecularWeight', '0'),
+                        synonyms=synonyms
                     )
                     
-                    st.success(f"✅ Senyawa ditemukan! CID: {cid}")
+                    # Ambil daftar bahaya GHS
+                    hazards = get_ghs_hazards(cid)
+                    
+                    # 1. Render Informasi Utama & Piktogram
+                    render_compound_overview(compound)
+                    st.divider()
+                    render_pictograms(hazards)
                     st.divider()
                     
-                    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                        '📋 Overview',
-                        '⚠️ Bahaya & GHS',
-                        '📊 Properti',
-                        '🛡️ Keselamatan',
-                        '🏷️ Lainnya'
-                    ])
+                    # 2. Buat Tampilan Tab Data Klasifikasi & Solusi Rekomendasi
+                    tabs = st.tabs(["📋 Semua Pernyataan Bahaya", "🛡️ Panduan Keselamatan K3", "📊 Properti Fisikokimia"])
                     
-                    with tab1:
-                        render_compound_overview(compound)
-                        if compound.synonyms:
-                            render_synonyms(compound.synonyms)
-                    
-                    with tab2:
-                        render_pictograms(compound.hazards)
-                        st.divider()
-                        render_hazard_classification(compound.hazards, cid)
-                        st.divider()
-                        render_nfpa_diamond(cid)
-                        st.divider()
-                        render_precautionary_statements(cid)
-                    
-                    with tab3:
-                        render_physical_properties(compound.physical_properties)
-                    
-                    with tab4:
-                        render_safety_recommendations(compound.hazards)
-                    
-                    with tab5:
-                        st.markdown("### 📚 Referensi & Tautan")
-                        st.markdown(f"""
-                        - [📖 Lihat di PubChem](https://pubchem.ncbi.nlm.nih.gov/compound/{cid})
-                        - [📄 Download SD Format](https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/SDF?record_type=3d)
-                        - [💾 Download JSON Data](https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/JSON)
-                        - [🖼️ Struktur 2D (PNG)](https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/PNG?image_size=large)
-                        """)
-                        
-                        st.markdown("### 📋 Export Data")
-                        if st.button("📥 Export sebagai JSON", use_container_width=True):
-                            export_data = {
-                                'cid': compound.cid,
-                                'name': compound.name,
-                                'iupac_name': compound.iupac_name,
-                                'molecular_formula': compound.molecular_formula,
-                                'molecular_weight': compound.molecular_weight,
-                                'cas_number': get_cas_number(cid),
-                                'synonyms': compound.synonyms,
-                                'hazards': [
-                                    {
-                                        'class': h.hazard_class,
-                                        'category': h.category,
-                                        'statement': h.statement,
-                                        'pictogram': h.pictogram_name,
-                                        'severity': h.severity
-                                    } for h in compound.hazards
-                                ],
-                                'properties': compound.physical_properties
-                            }
-                            st.download_button(
-                                label="⬇️ Download JSON",
-                                data=json.dumps(export_data, indent=2, ensure_ascii=False),
-                                file_name=f"{compound.name.replace(' ', '_')}_hazard_data.json",
-                                mime="application/json",
-                                use_container_width=True
-                            )
-                        
-                        st.markdown("### 🔷 Ringkasan NFPA 704")
+                    with tabs[0]:
+                        if hazards:
+                            for h in hazards:
+                                bg_color = '#ffcdd2' if h.severity == 'high' else '#ffe082' if h.severity == 'medium' else '#c8e6c9'
+                                border_color = '#b71c1c' if h.severity == 'high' else '#e65100' if h.severity == 'medium' else '#1b5e20'
+                                st.markdown(f"""
+                                <div style="background: {bg_color}; border-left: 5px solid {border_color}; padding: 12px 15px; margin: 6px 0; border-radius: 0 8px 8px 0; color: #1a1a1a !important; font-weight: 500;">
+                                    {h.statement} {render_hazard_badge(h.severity)}
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.info("Senyawa tergolong aman atau klasifikasi bahaya spesifik tidak terdaftar di PubChem.")
+                            
+                    with tabs[1]:
+                        recs = get_safety_recommendations(hazards)
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.markdown("#### 🥽 Alat Pelindung Diri (APD)")
+                            for p in recs['ppe']: st.markdown(f"- {p}")
+                            st.markdown("#### 🖐️ Penanganan Operasional")
+                            for h in recs['handling']: st.markdown(f"- {h}")
+                        with c2:
+                            st.markdown("#### 📦 Sistem Penyimpanan")
+                            for s in recs['storage']: st.markdown(f"- {s}")
+                            st.markdown("#### 🚨 Tanggap Darurat & Pembuangan")
+                            for e in recs['emergency']: st.markdown(f"- {e}")
+                            for d in recs['disposal']: st.markdown(f"- {d}")
+                            
+                    with tabs[2]:
+                        render_physical_properties(props)
+                        st.markdown("### 🔷 Data Rating NFPA 704")
                         nfpa = get_nfpa_diamond(cid)
                         nfpa_df = pd.DataFrame({
-                            'Parameter': ['Health (Kesehatan)', 'Flammability (Kemudahan Terbakar)', 
-                                         'Reactivity (Reaktivitas)', 'Special (Khusus)'],
+                            'Parameter': ['Health (Kesehatan)', 'Flammability (Kemudahan Terbakar)', 'Reactivity (Reaktivitas)', 'Special (Khusus)'],
                             'Rating': [nfpa['health'], nfpa['flammability'], nfpa['reactivity'], nfpa['special'] or 'None']
                         })
                         st.dataframe(nfpa_df, use_container_width=True, hide_index=True)
-                
+                        
                 else:
-                    st.error(f"❌ CID {cid} ditemukan tetapi data properti tidak tersedia.")
+                    st.error(f"❌ CID {cid} ditemukan, tetapi server properti PubChem tidak merespon.")
             else:
-                st.error(f"❌ Senyawa '{search_query}' tidak ditemukan di database PubChem.\n\nCoba gunakan nama lain atau periksa ejaan.")
-    
+                st.error(f"❌ Nama senyawa atau formula '{query}' tidak ditemukan di database PubChem.")
+                
     elif search_button and not search_query.strip():
-        st.warning("⚠️ Silakan masukkan nama senyawa terlebih dahulu!")
-    
+        st.warning("⚠️ Masukkan nama senyawa kimia terlebih dahulu!")
+        
     st.divider()
     render_footer()
 
