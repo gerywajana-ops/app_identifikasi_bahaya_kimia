@@ -771,16 +771,17 @@ def render_pictograms(hazards: List[HazardInfo]):
         if h.pictogram_code: stmt_text += " " + h.pictogram_code.lower()
         if h.pictogram_name: stmt_text += " " + h.pictogram_name.lower()
         
-        # Deteksi Kode Langsung
-        if 'ghs01' in stmt_text: detected_codes.add('GHS01')
-        if 'ghs02' in stmt_text: detected_codes.add('GHS02')
-        if 'ghs03' in stmt_text: detected_codes.add('GHS03')
-        if 'ghs04' in stmt_text: detected_codes.add('GHS04')
-        if 'ghs05' in stmt_text: detected_codes.add('GHS05')
-        if 'ghs06' in stmt_text: detected_codes.add('GHS06')
-        if 'ghs07' in stmt_text: detected_codes.add('GHS07')
-        if 'ghs08' in stmt_text: detected_codes.add('GHS08')
-        if 'ghs09' in stmt_text: detected_codes.add('GHS09')
+      # === UBAH BAGIAN INI MENJADI HURUF KECIL ===
+    # Deteksi Kode Langsung
+    if 'ghs01' in stmt_text: detected_codes.add('GHS01')
+    if 'ghs02' in stmt_text: detected_codes.add('GHS02')
+    if 'ghs03' in stmt_text: detected_codes.add('GHS03')
+    if 'ghs04' in stmt_text: detected_codes.add('GHS04')
+    if 'ghs05' in stmt_text: detected_codes.add('GHS05')
+    if 'ghs06' in stmt_text: detected_codes.add('GHS06')
+    if 'ghs07' in stmt_text: detected_codes.add('GHS07')
+    if 'ghs08' in stmt_text: detected_codes.add('GHS08')
+    if 'ghs09' in stmt_text: detected_codes.add('GHS09')
         
         # Scan Kata Kunci (Sangat berguna jika PubChem mengembalikan teks deskripsi murni)
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text: detected_codes.add('GHS02')
