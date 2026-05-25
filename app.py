@@ -200,21 +200,23 @@ def get_ghs_hazards(cid: int) -> List[HazardInfo]:
                 parse_json_recursive(item)
 
     try:
+        # Gunakan timeout yang sedikit lebih longgar (15 detik) untuk antisipasi lag server
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=Safety+and+Hazards"
-        response = requests.get(url, timeout=12)
+        response = requests.get(url, timeout=15)
         if response.status_code == 200:
             parse_json_recursive(response.json())
             
         if not hazards:
             url_fallback = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
-            response_fb = requests.get(url_fallback, timeout=12)
+            response_fb = requests.get(url_fallback, timeout=15)
             if response_fb.status_code == 200:
                 parse_json_recursive(response_fb.json())
+    except requests.exceptions.Timeout:
+        st.warning("⚠️ Koneksi ke PubChem terlalu lambat (Timeout). Silakan coba klik Identifikasi kembali.")
     except Exception as e:
-        st.warning(f"Sistem gagal membaca GHS: {e}")
+        st.warning(f"⚠️ Sistem gagal membaca GHS karena masalah teknis: {e}")
         
     return hazards
-
 
 def parse_hazard_code(hazard_string: str) -> HazardInfo:
     parts = hazard_string.split(':', 1)
