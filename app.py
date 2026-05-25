@@ -106,33 +106,26 @@ st.markdown("""
 # DATA CLASSES
 # =============================================================================
 
+# =============================================================================
+# DATA MODELS
+# =============================================================================
+
 @dataclass
 class HazardInfo:
-    """Data class untuk menyimpan informasi bahaya kimia"""
-    hazard_class: str
-    category: str
-    statement: str
     pictogram_code: str
     pictogram_name: str
-    severity: str  # high, medium, low
-
+    statement: str
+    severity: str  # 'high', 'medium', 'low'
+    hazard_class: str  # 'Fisika', 'Kesehatan', 'Lingkungan'
 
 @dataclass
 class ChemicalCompound:
-    """Data class untuk menyimpan data senyawa kimia"""
     cid: int
     name: str
     iupac_name: str
     molecular_formula: str
-    molecular_weight: float
+    molecular_weight: str
     synonyms: List[str]
-    description: str
-    hazards: List[HazardInfo]
-    physical_properties: Dict
-    safety_info: Dict
-    pictogram_urls: List[str]
-
-
 # =============================================================================
 # PUBCHEM API FUNCTIONS
 # =============================================================================
