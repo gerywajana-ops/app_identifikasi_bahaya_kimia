@@ -675,7 +675,7 @@ def render_compound_overview(compound: ChemicalCompound):
     
     col1, col2 = st.columns([1, 2])
     
-   with col1:
+    with col1:
     # Tampilkan struktur 2D
     structure_url = get_compound_2d_structure(compound.cid)
     try:
