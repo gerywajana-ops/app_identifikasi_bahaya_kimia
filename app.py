@@ -358,20 +358,20 @@ def parse_hazard_code(code: str) -> HazardInfo:
 
 
 def get_pictogram_url(pictogram_code: str) -> str:
-    """Mendapatkan URL gambar piktogram GHS format PNG resmi yang stabil dan kompatibel"""
+    """Mendapatkan URL gambar piktogram GHS format resmi yang stabil dan kompatibel"""
     pictogram_urls = {
-        'GHS01': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/GHS-pictogram-explos.svg/240px-GHS-pictogram-explos.svg.png',
+        'GHS01': 'https://upload.wikimedia.org/wikipedia/commons/6/6f/GHS-pictogram-explos.svg',
         'GHS02': 'https://upload.wikimedia.org/wikipedia/commons/6/6a/GHS-pictogram-flamme.svg',
-        'GHS03': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/GHS-pictogram-rondflam.svg/240px-GHS-pictogram-rondflam.svg.png',
-        'GHS04': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/GHS-pictogram-bottle.svg/240px-GHS-pictogram-bottle.svg.png',
-        'GHS05': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/GHS-pictogram-acid.svg/240px-GHS-pictogram-acid.svg.png',
-        'GHS06': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/GHS-pictogram-skull.svg/240px-GHS-pictogram-skull.svg.png',
-        'GHS07': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/GHS-pictogram-exclam.svg/240px-GHS-pictogram-exclam.svg.png',
-        'GHS08': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/GHS-pictogram-silhouette.svg/240px-GHS-pictogram-silhouette.svg.png',
-        'GHS09': 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/GHS-pictogram-pollu.svg/240px-GHS-pictogram-pollu.svg.png',
+        'GHS03': 'https://upload.wikimedia.org/wikipedia/commons/c/c5/GHS-pictogram-rondflam.svg',
+        'GHS04': 'https://upload.wikimedia.org/wikipedia/commons/5/52/GHS-pictogram-bouteille.svg',
+        'GHS05': 'https://upload.wikimedia.org/wikipedia/commons/a/af/GHS-pictogram-acid.svg',
+        'GHS06': 'https://upload.wikimedia.org/wikipedia/commons/a/a1/GHS-pictogram-skull.svg',
+        'GHS07': 'https://upload.wikimedia.org/wikipedia/commons/5/50/GHS-pictogram-exclam.svg',
+        'GHS08': 'https://upload.wikimedia.org/wikipedia/commons/d/d4/GHS-pictogram-silhouet.svg',
+        'GHS09': 'https://upload.wikimedia.org/wikipedia/commons/9/96/GHS-pictogram-pollu.svg',
     }
     return pictogram_urls.get(pictogram_code, '')
-
+    
 def get_compound_2d_structure(cid: int) -> Optional[str]:
     """Mendapatkan URL gambar struktur 2D senyawa"""
     return f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/PNG?image_size=large"
