@@ -766,7 +766,40 @@ def render_physical_properties(properties: Dict):
 
 
 def render_pictograms(hazards: List[HazardInfo]):
-    # ... (bagian atas fungsi penangkap detected_codes biarkan sama) ...
+    """Render piktogram GHS berdasarkan hasil ekstraksi data hazards"""
+    st.markdown("### ⚠️ Pictogram Bahaya GHS")
+    if not hazards:
+        st.info("Tidak ada data piktogram GHS yang tersedia (Daftar bahaya kosong).")
+        return
+
+    detected_codes = set()
+    for h in hazards:
+        stmt_text = ""
+        if h.statement:
+            stmt_text += " " + h.statement.lower()
+        if h.pictogram_code:
+            stmt_text += " " + h.pictogram_code.lower()
+        if h.pictogram_name:
+            stmt_text += " " + h.pictogram_name.lower()
+
+        if 'flamm' in stmt_text or 'pyrophor' in stmt_text:
+            detected_codes.add('GHS02')
+        if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text:
+            detected_codes.add('GHS06')
+        if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text:
+            detected_codes.add('GHS05')
+        if 'explos' in stmt_text:
+            detected_codes.add('GHS01')
+        if 'oxidiz' in stmt_text:
+            detected_codes.add('GHS03')
+        if 'gas under press' in stmt_text or 'compressed gas' in stmt_text:
+            detected_codes.add('GHS04')
+        if 'irritat' in stmt_text or 'harmful' in stmt_text or 'sensitiz' in stmt_text:
+            detected_codes.add('GHS07')
+        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'respiratory' in stmt_text or 'target organ' in stmt_text:
+            detected_codes.add('GHS08')
+        if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
+            detected_codes.add('GHS09')
 
     if not detected_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
@@ -795,7 +828,7 @@ def render_pictograms(hazards: List[HazardInfo]):
                 st.image(url, caption=ghs_names.get(code, code), width=100)
             else:
                 st.warning(f"⚠️ {ghs_names.get(code, code)}")
-
+                
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
     st.markdown("### 🏷️ Klasifikasi Bahaya GHS")
