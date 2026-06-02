@@ -358,20 +358,25 @@ def parse_hazard_code(code: str) -> HazardInfo:
 
 
 def get_pictogram_url(pictogram_code: str) -> str:
-    """Mendapatkan URL gambar piktogram GHS format SVG yang stabil melalui CDN jsDelivr"""
-    # Menggunakan CDN jsDelivr agar browser tidak memblokir gambar (CORS)
+    """Mendapatkan URL gambar piktogram GHS format PNG yang stabil dan anti-blokir"""
+    base_url = "https://raw.githubusercontent.com/ajmendez/ghs-pictograms/master/png/"
+    
     pictogram_files = {
-        'GHS01': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs01-explos.svg',
-        'GHS02': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs02-flamme.svg',
-        'GHS03': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs03-rondflam.svg',
-        'GHS04': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs04-bouteille.svg',
-        'GHS05': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs05-acid.svg',
-        'GHS06': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs06-skull.svg',
-        'GHS07': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs07-exclam.svg',
-        'GHS08': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs08-silhouet.svg',
-        'GHS09': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs09-pollu.svg',
+        'GHS01': 'ghs01-explos.png',
+        'GHS02': 'ghs02-flamme.png',
+        'GHS03': 'ghs03-rondflam.png',
+        'GHS04': 'ghs04-bouteille.png',
+        'GHS05': 'ghs05-acid.png',
+        'GHS06': 'ghs06-skull.png',
+        'GHS07': 'ghs07-exclam.png',
+        'GHS08': 'ghs08-silhouet.png',
+        'GHS09': 'ghs09-pollu.png',
     }
-    return pictogram_files.get(pictogram_code.strip().upper(), "")
+    
+    filename = pictogram_files.get(pictogram_code.strip().upper())
+    if filename:
+        return base_url + filename
+    return ""
     
 def get_compound_2d_structure(cid: int) -> Optional[str]:
     """Mendapatkan URL gambar struktur 2D senyawa"""
@@ -798,7 +803,7 @@ def render_pictograms(hazards: List[HazardInfo]):
         if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
             detected_codes.add('GHS09')
 
-    # Bersihkan kode dari karakter aneh
+    # Filter ketat agar hanya kode GHS valid yang diproses
     detected_codes = {code for code in detected_codes if code and str(code).startswith('GHS')}
 
     if not detected_codes:
@@ -817,7 +822,7 @@ def render_pictograms(hazards: List[HazardInfo]):
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
 
-    # Membuat struktur grid kolom murni menggunakan Streamlit layout agar jauh lebih aman dari error sintaks HTML
+    # Membuat tata letak grid menggunakan st.columns bawaan Streamlit
     valid_codes = sorted(list(detected_codes))
     cols = st.columns(min(len(valid_codes), 4))
     
@@ -825,9 +830,8 @@ def render_pictograms(hazards: List[HazardInfo]):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                # Menggunakan tag HTML tunggal yang ringkas di dalam komponen markdown
-                st.markdown(f'<img src="{url}" width="80" style="background-color: white; padding: 5px; border-radius: 4px; display: block; margin: 0 auto 5px auto;" />', unsafe_allow_html=True)
-                st.caption(f"<center><b>{ghs_names.get(code, code)}</b></center>", unsafe_allow_html=True)
+                # Menampilkan gambar PNG langsung via komponen st.image yang aman
+                st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
             else:
                 st.warning(f"⚠️ {ghs_names.get(code, code)}")
                 
