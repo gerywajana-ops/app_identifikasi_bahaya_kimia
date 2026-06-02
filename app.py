@@ -358,19 +358,26 @@ def parse_hazard_code(code: str) -> HazardInfo:
 
 
 def get_pictogram_url(pictogram_code: str) -> str:
-    """Mendapatkan URL gambar piktogram GHS format resmi yang stabil dan kompatibel"""
-    pictogram_urls = {
-        'GHS01': 'https://upload.wikimedia.org/wikipedia/commons/6/6f/GHS-pictogram-explos.svg',
-        'GHS02': 'https://upload.wikimedia.org/wikipedia/commons/6/6a/GHS-pictogram-flamme.svg',
-        'GHS03': 'https://upload.wikimedia.org/wikipedia/commons/c/c5/GHS-pictogram-rondflam.svg',
-        'GHS04': 'https://upload.wikimedia.org/wikipedia/commons/5/52/GHS-pictogram-bouteille.svg',
-        'GHS05': 'https://upload.wikimedia.org/wikipedia/commons/a/af/GHS-pictogram-acid.svg',
-        'GHS06': 'https://upload.wikimedia.org/wikipedia/commons/a/a1/GHS-pictogram-skull.svg',
-        'GHS07': 'https://upload.wikimedia.org/wikipedia/commons/5/50/GHS-pictogram-exclam.svg',
-        'GHS08': 'https://upload.wikimedia.org/wikipedia/commons/d/d4/GHS-pictogram-silhouet.svg',
-        'GHS09': 'https://upload.wikimedia.org/wikipedia/commons/9/96/GHS-pictogram-pollu.svg',
+    """Mendapatkan URL gambar piktogram GHS format PNG yang stabil dan anti-blokir"""
+    # Menggunakan repositori alternatif yang stabil untuk gambar piktogram GHS
+    base_url = "https://raw.githubusercontent.com/ajmendez/ghs-pictograms/master/png/"
+    
+    pictogram_files = {
+        'GHS01': 'ghs01-explos.png',
+        'GHS02': 'ghs02-flamme.png',
+        'GHS03': 'ghs03-rondflam.png',
+        'GHS04': 'ghs04-bouteille.png',
+        'GHS05': 'ghs05-acid.png',
+        'GHS06': 'ghs06-skull.png',
+        'GHS07': 'ghs07-exclam.png',
+        'GHS08': 'ghs08-silhouet.png',
+        'GHS09': 'ghs09-pollu.png',
     }
-    return pictogram_urls.get(pictogram_code, '')
+    
+    filename = pictogram_files.get(pictogram_code.strip().upper())
+    if filename:
+        return base_url + filename
+    return ""
     
 def get_compound_2d_structure(cid: int) -> Optional[str]:
     """Mendapatkan URL gambar struktur 2D senyawa"""
@@ -759,40 +766,7 @@ def render_physical_properties(properties: Dict):
 
 
 def render_pictograms(hazards: List[HazardInfo]):
-    """Render piktogram GHS berdasarkan hasil ekstraksi data hazards"""
-    st.markdown("### ⚠️ Pictogram Bahaya GHS")
-    if not hazards:
-        st.info("Tidak ada data piktogram GHS yang tersedia (Daftar bahaya kosong).")
-        return
-
-    detected_codes = set()
-    for h in hazards:
-        stmt_text = ""
-        if h.statement:
-            stmt_text += " " + h.statement.lower()
-        if h.pictogram_code:
-            stmt_text += " " + h.pictogram_code.lower()
-        if h.pictogram_name:
-            stmt_text += " " + h.pictogram_name.lower()
-
-        if 'flamm' in stmt_text or 'pyrophor' in stmt_text:
-            detected_codes.add('GHS02')
-        if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text:
-            detected_codes.add('GHS06')
-        if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text:
-            detected_codes.add('GHS05')
-        if 'explos' in stmt_text:
-            detected_codes.add('GHS01')
-        if 'oxidiz' in stmt_text:
-            detected_codes.add('GHS03')
-        if 'gas under press' in stmt_text or 'compressed gas' in stmt_text:
-            detected_codes.add('GHS04')
-        if 'irritat' in stmt_text or 'harmful' in stmt_text or 'sensitiz' in stmt_text:
-            detected_codes.add('GHS07')
-        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'respiratory' in stmt_text or 'target organ' in stmt_text:
-            detected_codes.add('GHS08')
-        if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
-            detected_codes.add('GHS09')
+    # ... (bagian atas fungsi penangkap detected_codes biarkan sama) ...
 
     if not detected_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
@@ -810,15 +784,17 @@ def render_pictograms(hazards: List[HazardInfo]):
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
 
-    # Bikin grid kolom
-    cols = st.columns(min(len(detected_codes), 4))
+    # Bikin grid kolom untuk piktogram yang terdeteksi
+    valid_codes = sorted(list(detected_codes))
+    cols = st.columns(min(len(valid_codes), 4))
     
-    for i, code in enumerate(sorted(list(detected_codes))):
+    for i, code in enumerate(valid_codes):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                # LANGSUNG MASUKKAN URL KE st.image TANPA MENGGUNAKAN requests.get
-                st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
+                st.image(url, caption=ghs_names.get(code, code), width=100)
+            else:
+                st.warning(f"⚠️ {ghs_names.get(code, code)}")
 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
