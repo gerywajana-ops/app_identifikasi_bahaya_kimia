@@ -358,26 +358,20 @@ def parse_hazard_code(code: str) -> HazardInfo:
 
 
 def get_pictogram_url(pictogram_code: str) -> str:
-    """Mendapatkan URL gambar piktogram GHS format PNG yang stabil dan anti-blokir"""
-    # Menggunakan repositori alternatif yang stabil untuk gambar piktogram GHS
-    base_url = "https://raw.githubusercontent.com/ajmendez/ghs-pictograms/master/png/"
-    
+    """Mendapatkan URL gambar piktogram GHS format SVG yang stabil melalui CDN jsDelivr"""
+    # Menggunakan CDN jsDelivr agar browser tidak memblokir gambar (CORS)
     pictogram_files = {
-        'GHS01': 'ghs01-explos.png',
-        'GHS02': 'ghs02-flamme.png',
-        'GHS03': 'ghs03-rondflam.png',
-        'GHS04': 'ghs04-bouteille.png',
-        'GHS05': 'ghs05-acid.png',
-        'GHS06': 'ghs06-skull.png',
-        'GHS07': 'ghs07-exclam.png',
-        'GHS08': 'ghs08-silhouet.png',
-        'GHS09': 'ghs09-pollu.png',
+        'GHS01': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs01-explos.svg',
+        'GHS02': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs02-flamme.svg',
+        'GHS03': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs03-rondflam.svg',
+        'GHS04': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs04-bouteille.svg',
+        'GHS05': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs05-acid.svg',
+        'GHS06': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs06-skull.svg',
+        'GHS07': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs07-exclam.svg',
+        'GHS08': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs08-silhouet.svg',
+        'GHS09': 'https://cdn.jsdelivr.net/gh/ajmendez/ghs-pictograms@master/svg/ghs09-pollu.svg',
     }
-    
-    filename = pictogram_files.get(pictogram_code.strip().upper())
-    if filename:
-        return base_url + filename
-    return ""
+    return pictogram_files.get(pictogram_code.strip().upper(), "")
     
 def get_compound_2d_structure(cid: int) -> Optional[str]:
     """Mendapatkan URL gambar struktur 2D senyawa"""
@@ -825,7 +819,14 @@ def render_pictograms(hazards: List[HazardInfo]):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                st.image(url, caption=ghs_names.get(code, code), width=100)
+                # Menggunakan HTML markdown agar tampilan gambar SVG via CDN stabil tanpa ikon 0 rusak
+                st.markdown(
+                    f'<div style="text-align: center; margin-bottom: 10px;">'
+                    f'<img src="{url}" width="100" alt="{code}" style="background-color: white; padding: 5px; border-radius: 5px;"/><br>'
+                    f'<small style="font-weight: 500;">{ghs_names.get(code, code)}</small>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
             else:
                 st.warning(f"⚠️ {ghs_names.get(code, code)}")
                 
