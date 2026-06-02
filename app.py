@@ -764,55 +764,61 @@ def render_pictograms(hazards: List[HazardInfo]):
     if not hazards:
         st.info("Tidak ada data piktogram GHS yang tersedia (Daftar bahaya kosong).")
         return
-        
+
     detected_codes = set()
     for h in hazards:
         stmt_text = ""
-        if h.statement: stmt_text += " " + h.statement.lower()
-        if h.pictogram_code: stmt_text += " " + h.pictogram_code.lower()
-        if h.pictogram_name: stmt_text += " " + h.pictogram_name.lower()
-        
-        # ... (Logika scan kata kunci kamu yang sudah ada tetap di sini) ...
-        if 'flamm' in stmt_text or 'pyrophor' in stmt_text: detected_codes.add('GHS02')
-        if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text: detected_codes.add('GHS06')
-        if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text: detected_codes.add('GHS05')
-        if 'explos' in stmt_text: detected_codes.add('GHS01')
-        if 'oxidiz' in stmt_text: detected_codes.add('GHS03')
-        if 'gas under press' in stmt_text or 'compressed gas' in stmt_text: detected_codes.add('GHS04')
-        if 'irritat' in stmt_text or 'harmful' in stmt_text or 'sensitiz' in stmt_text: detected_codes.add('GHS07')
-        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'respiratory' in stmt_text or 'target organ' in stmt_text: detected_codes.add('GHS08')
-        if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text: detected_codes.add('GHS09')
+        if h.statement:
+            stmt_text += " " + h.statement.lower()
+        if h.pictogram_code:
+            stmt_text += " " + h.pictogram_code.lower()
+        if h.pictogram_name:
+            stmt_text += " " + h.pictogram_name.lower()
+
+        if 'flamm' in stmt_text or 'pyrophor' in stmt_text:
+            detected_codes.add('GHS02')
+        if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text:
+            detected_codes.add('GHS06')
+        if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text:
+            detected_codes.add('GHS05')
+        if 'explos' in stmt_text:
+            detected_codes.add('GHS01')
+        if 'oxidiz' in stmt_text:
+            detected_codes.add('GHS03')
+        if 'gas under press' in stmt_text or 'compressed gas' in stmt_text:
+            detected_codes.add('GHS04')
+        if 'irritat' in stmt_text or 'harmful' in stmt_text or 'sensitiz' in stmt_text:
+            detected_codes.add('GHS07')
+        if 'carcinogen' in stmt_text or 'mutagen' in stmt_text or 'respiratory' in stmt_text or 'target organ' in stmt_text:
+            detected_codes.add('GHS08')
+        if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
+            detected_codes.add('GHS09')
 
     if not detected_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
         return
 
     ghs_names = {
-        'GHS01': 'Explosive (Mudah Meledak)', 'GHS02': 'Flammable (Mudah Terbakar)',
-        'GHS03': 'Oxidizing (Pengoksidasi)', 'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
-        'GHS05': 'Corrosive (Korosif / Merusak)', 'GHS06': 'Acute Toxicity (Beracun)',
-        'GHS07': 'Harmful / Irritant (Iritasi / Bahaya Ringan)', 'GHS08': 'Health Hazard (Bahaya Kesehatan Kronis)',
+        'GHS01': 'Explosive (Mudah Meledak)',
+        'GHS02': 'Flammable (Mudah Terbakar)',
+        'GHS03': 'Oxidizing (Pengoksidasi)',
+        'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
+        'GHS05': 'Corrosive (Korosif / Merusak)',
+        'GHS06': 'Acute Toxicity (Beracun)',
+        'GHS07': 'Harmful / Irritant (Iritasi / Bahaya Ringan)',
+        'GHS08': 'Health Hazard (Bahaya Kesehatan Kronis)',
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
 
     # Bikin grid kolom
     cols = st.columns(min(len(detected_codes), 4))
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"} # Agar tidak diblokir Wikipedia
     
     for i, code in enumerate(sorted(list(detected_codes))):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                try:
-                    # Ambil gambar lewat requests + convert ke PIL Image seperti pada struktur 2D
-                    img_response = requests.get(url, headers=headers, timeout=10)
-                    if img_response.status_code == 200:
-                        img = Image.open(BytesIO(img_response.content))
-                        st.image(img, caption=ghs_names.get(code, code), use_container_width=True)
-                    else:
-                        st.warning(f"Gagal memuat {code} (Status: {img_response.status_code})")
-                except Exception as e:
-                    st.error(f"Error load {code}: {e}")
+                # LANGSUNG MASUKKAN URL KE st.image TANPA MENGGUNAKAN requests.get
+                st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
