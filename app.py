@@ -768,7 +768,6 @@ def render_pictograms(hazards: List[HazardInfo]):
 
     detected_codes = set()
     for h in hazards:
-        # PENGAMAN: Jika h atau komponennya tidak valid/kosong, lewati saja
         if not h or not hasattr(h, 'statement'):
             continue
             
@@ -780,7 +779,6 @@ def render_pictograms(hazards: List[HazardInfo]):
         if h.pictogram_name:
             stmt_text += " " + str(h.pictogram_name).lower()
 
-        # Hanya masukkan ke set jika mendeteksi kata kunci bahaya yang valid
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text:
             detected_codes.add('GHS02')
         if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text:
@@ -800,7 +798,7 @@ def render_pictograms(hazards: List[HazardInfo]):
         if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
             detected_codes.add('GHS09')
 
-    # PENGAMAN KEDUA: Bersihkan detected_codes dari karakter kosong atau angka 0 yang menyelinap
+    # Bersihkan kode palsu
     detected_codes = {code for code in detected_codes if code and str(code).startswith('GHS')}
 
     if not detected_codes:
@@ -819,23 +817,23 @@ def render_pictograms(hazards: List[HazardInfo]):
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
 
-    # Bikin grid kolom untuk piktogram yang terdeteksi
-    valid_codes = sorted(list(detected_codes))
-    cols = st.columns(min(len(valid_codes), 4))
+    # Pembungkus Grid HTML agar gambar sejajar rapi secara horizontal
+    grid_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-top: 10px;">'
     
-    for i, code in enumerate(valid_codes):
+    for code in sorted(list(detected_codes)):
         url = get_pictogram_url(code)
-        with cols[i % 4]:
-            if url:
-                st.markdown(
-                    f'<div style="text-align: center; margin-bottom: 10px;">'
-                    f'<img src="{url}" width="100" alt="{ghs_names.get(code, code)}" style="background-color: white; padding: 5px; border-radius: 5px;"/><br>'
-                    f'<small style="font-weight: 500;">{ghs_names.get(code, code)}</small>'
-                    f'</div>',
-                    unsafe_allow_html=True
-                )
-            else:
-                st.warning(f"⚠️ {ghs_names.get(code, code)}")
+        if url:
+            grid_html += f"""
+            <div style="text-align: center; background-color: #262730; padding: 10px; border-radius: 8px; border: 1px solid #464855;">
+                <img src="{url}" width="80" style="background-color: white; padding: 5px; border-radius: 4px; display: block; margin: 0 auto 8px auto;" />
+                <span style="font-size: 0.8rem; font-weight: 500; color: #ffffff; display: block; line-height: 1.2;">{ghs_names.get(code, code)}</span>
+            </div>
+            """
+            
+    grid_html += '</div><br>'
+    
+    # Render seluruh grid sekaligus
+    st.markdown(grid_html, unsafe_allow_html=True)
                 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
