@@ -676,21 +676,21 @@ def render_compound_overview(compound: ChemicalCompound):
     col1, col2 = st.columns([1, 2])
     
     with col1:
-       # Tampilkan struktur 2D
-         structure_url = get_compound_2d_structure(compound.cid)
-         try:
-             # Tambahkan headers agar tidak diblokir oleh API PubChem
-              headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-              response = requests.get(structure_url, headers=headers, timeout=10)
+        # Tampilkan struktur 2D
+        structure_url = get_compound_2d_structure(compound.cid)
+        try:
+            # Tambahkan headers agar tidak diblokir oleh API PubChem
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            response = requests.get(structure_url, headers=headers, timeout=10)
         
-              if response.status_code == 200:
-                  img = Image.open(BytesIO(response.content))
-                  st.image(img, caption=f"Struktur 2D: {compound.name}", use_container_width=True)
-              else:
-                  # Menampilkan status code error untuk memudahkan tracking
-                  st.info(f"Gambar struktur tidak tersedia (Status: {response.status_code})")
-          except Exception as e:
-              st.info(f"Gambar struktur tidak dapat dimuat: {e}")
+            if response.status_code == 200:
+                img = Image.open(BytesIO(response.content))
+                st.image(img, caption=f"Struktur 2D: {compound.name}", use_container_width=True)
+            else:
+                # Menampilkan status code error untuk memudahkan tracking
+                st.info(f"Gambar struktur tidak tersedia (Status: {response.status_code})")
+        except Exception as e:
+            st.info(f"Gambar struktur tidak dapat dimuat: {e}")
     
     with col2:
         st.markdown(f"""
