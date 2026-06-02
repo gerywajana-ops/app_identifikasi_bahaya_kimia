@@ -768,14 +768,19 @@ def render_pictograms(hazards: List[HazardInfo]):
 
     detected_codes = set()
     for h in hazards:
+        # PENGAMAN: Jika h atau komponennya tidak valid/kosong, lewati saja
+        if not h or not hasattr(h, 'statement'):
+            continue
+            
         stmt_text = ""
         if h.statement:
-            stmt_text += " " + h.statement.lower()
+            stmt_text += " " + str(h.statement).lower()
         if h.pictogram_code:
-            stmt_text += " " + h.pictogram_code.lower()
+            stmt_text += " " + str(h.pictogram_code).lower()
         if h.pictogram_name:
-            stmt_text += " " + h.pictogram_name.lower()
+            stmt_text += " " + str(h.pictogram_name).lower()
 
+        # Hanya masukkan ke set jika mendeteksi kata kunci bahaya yang valid
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text:
             detected_codes.add('GHS02')
         if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text:
@@ -794,6 +799,9 @@ def render_pictograms(hazards: List[HazardInfo]):
             detected_codes.add('GHS08')
         if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
             detected_codes.add('GHS09')
+
+    # PENGAMAN KEDUA: Bersihkan detected_codes dari karakter kosong atau angka 0 yang menyelinap
+    detected_codes = {code for code in detected_codes if code and str(code).startswith('GHS')}
 
     if not detected_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
@@ -819,10 +827,9 @@ def render_pictograms(hazards: List[HazardInfo]):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                # Menggunakan HTML markdown agar tampilan gambar SVG via CDN stabil tanpa ikon 0 rusak
                 st.markdown(
                     f'<div style="text-align: center; margin-bottom: 10px;">'
-                    f'<img src="{url}" width="100" alt="{code}" style="background-color: white; padding: 5px; border-radius: 5px;"/><br>'
+                    f'<img src="{url}" width="100" alt="{ghs_names.get(code, code)}" style="background-color: white; padding: 5px; border-radius: 5px;"/><br>'
                     f'<small style="font-weight: 500;">{ghs_names.get(code, code)}</small>'
                     f'</div>',
                     unsafe_allow_html=True
