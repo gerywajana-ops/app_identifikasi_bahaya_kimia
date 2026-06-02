@@ -757,32 +757,18 @@ def render_physical_properties(properties: Dict):
 def render_pictograms(hazards: List[HazardInfo]):
     """Render piktogram GHS berdasarkan hasil ekstraksi data hazards"""
     st.markdown("### ⚠️ Pictogram Bahaya GHS")
-    
     if not hazards:
         st.info("Tidak ada data piktogram GHS yang tersedia (Daftar bahaya kosong).")
         return
         
     detected_codes = set()
-    
     for h in hazards:
-        # Satukan semua teks dari properti objek untuk discan kata kuncinya
         stmt_text = ""
         if h.statement: stmt_text += " " + h.statement.lower()
         if h.pictogram_code: stmt_text += " " + h.pictogram_code.lower()
         if h.pictogram_name: stmt_text += " " + h.pictogram_name.lower()
         
-        # Deteksi Kode Langsung
-        if 'ghs01' in stmt_text: detected_codes.add('GHS01')
-        if 'ghs02' in stmt_text: detected_codes.add('GHS02')
-        if 'ghs03' in stmt_text: detected_codes.add('GHS03')
-        if 'ghs04' in stmt_text: detected_codes.add('GHS04')
-        if 'ghs05' in stmt_text: detected_codes.add('GHS05')
-        if 'ghs06' in stmt_text: detected_codes.add('GHS06')
-        if 'ghs07' in stmt_text: detected_codes.add('GHS07')
-        if 'ghs08' in stmt_text: detected_codes.add('GHS08')
-        if 'ghs09' in stmt_text: detected_codes.add('GHS09')
-        
-        # Scan Kata Kunci (Sangat berguna jika PubChem mengembalikan teks deskripsi murni)
+        # ... (Logika scan kata kunci kamu yang sudah ada tetap di sini) ...
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text: detected_codes.add('GHS02')
         if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text: detected_codes.add('GHS06')
         if 'corros' in stmt_text or 'eye damag' in stmt_text or 'skin burn' in stmt_text: detected_codes.add('GHS05')
@@ -796,26 +782,33 @@ def render_pictograms(hazards: List[HazardInfo]):
     if not detected_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
         return
-        
+
     ghs_names = {
-        'GHS01': 'Explosive (Mudah Meledak)',
-        'GHS02': 'Flammable (Mudah Terbakar)',
-        'GHS03': 'Oxidizing (Pengoksidasi)',
-        'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
-        'GHS05': 'Corrosive (Korosif / Merusak)',
-        'GHS06': 'Acute Toxicity (Beracun)',
-        'GHS07': 'Harmful / Irritant (Iritasi / Bahaya Ringan)',
-        'GHS08': 'Health Hazard (Bahaya Kesehatan Kronis)',
+        'GHS01': 'Explosive (Mudah Meledak)', 'GHS02': 'Flammable (Mudah Terbakar)',
+        'GHS03': 'Oxidizing (Pengoksidasi)', 'GHS04': 'Gases Under Pressure (Gas Bertekanan)',
+        'GHS05': 'Corrosive (Korosif / Merusak)', 'GHS06': 'Acute Toxicity (Beracun)',
+        'GHS07': 'Harmful / Irritant (Iritasi / Bahaya Ringan)', 'GHS08': 'Health Hazard (Bahaya Kesehatan Kronis)',
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
-    
-    # Render gambar ke dalam grid Streamlit
+
+    # Bikin grid kolom
     cols = st.columns(min(len(detected_codes), 4))
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"} # Agar tidak diblokir Wikipedia
+    
     for i, code in enumerate(sorted(list(detected_codes))):
         url = get_pictogram_url(code)
         with cols[i % 4]:
             if url:
-                st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
+                try:
+                    # Ambil gambar lewat requests + convert ke PIL Image seperti pada struktur 2D
+                    img_response = requests.get(url, headers=headers, timeout=10)
+                    if img_response.status_code == 200:
+                        img = Image.open(BytesIO(img_response.content))
+                        st.image(img, caption=ghs_names.get(code, code), use_container_width=True)
+                    else:
+                        st.warning(f"Gagal memuat {code} (Status: {img_response.status_code})")
+                except Exception as e:
+                    st.error(f"Error load {code}: {e}")
 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
