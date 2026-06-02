@@ -361,7 +361,7 @@ def get_pictogram_url(pictogram_code: str) -> str:
     """Mendapatkan URL gambar piktogram GHS format PNG resmi yang stabil dan kompatibel"""
     pictogram_urls = {
         'GHS01': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/GHS-pictogram-explos.svg/240px-GHS-pictogram-explos.svg.png',
-        'GHS02': 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/GHS-pictogram-flamme.svg/240px-GHS-pictogram-flamme.svg.png',
+        'GHS02': 'https://upload.wikimedia.org/wikipedia/commons/6/6a/GHS-pictogram-flamme.svg',
         'GHS03': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/GHS-pictogram-rondflam.svg/240px-GHS-pictogram-rondflam.svg.png',
         'GHS04': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/GHS-pictogram-bottle.svg/240px-GHS-pictogram-bottle.svg.png',
         'GHS05': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/GHS-pictogram-acid.svg/240px-GHS-pictogram-acid.svg.png',
