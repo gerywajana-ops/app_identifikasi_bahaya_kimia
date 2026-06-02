@@ -798,7 +798,7 @@ def render_pictograms(hazards: List[HazardInfo]):
         if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
             detected_codes.add('GHS09')
 
-    # Bersihkan kode palsu
+    # Bersihkan kode dari karakter aneh
     detected_codes = {code for code in detected_codes if code and str(code).startswith('GHS')}
 
     if not detected_codes:
@@ -817,23 +817,19 @@ def render_pictograms(hazards: List[HazardInfo]):
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
 
-    # Pembungkus Grid HTML agar gambar sejajar rapi secara horizontal
-    grid_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-top: 10px;">'
+    # Membuat struktur grid kolom murni menggunakan Streamlit layout agar jauh lebih aman dari error sintaks HTML
+    valid_codes = sorted(list(detected_codes))
+    cols = st.columns(min(len(valid_codes), 4))
     
-    for code in sorted(list(detected_codes)):
+    for i, code in enumerate(valid_codes):
         url = get_pictogram_url(code)
-        if url:
-            grid_html += f"""
-            <div style="text-align: center; background-color: #262730; padding: 10px; border-radius: 8px; border: 1px solid #464855;">
-                <img src="{url}" width="80" style="background-color: white; padding: 5px; border-radius: 4px; display: block; margin: 0 auto 8px auto;" />
-                <span style="font-size: 0.8rem; font-weight: 500; color: #ffffff; display: block; line-height: 1.2;">{ghs_names.get(code, code)}</span>
-            </div>
-            """
-            
-    grid_html += '</div><br>'
-    
-    # Render seluruh grid sekaligus
-    st.markdown(grid_html, unsafe_allow_html=True)
+        with cols[i % 4]:
+            if url:
+                # Menggunakan tag HTML tunggal yang ringkas di dalam komponen markdown
+                st.markdown(f'<img src="{url}" width="80" style="background-color: white; padding: 5px; border-radius: 4px; display: block; margin: 0 auto 5px auto;" />', unsafe_allow_html=True)
+                st.caption(f"<center><b>{ghs_names.get(code, code)}</b></center>", unsafe_allow_html=True)
+            else:
+                st.warning(f"⚠️ {ghs_names.get(code, code)}")
                 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
