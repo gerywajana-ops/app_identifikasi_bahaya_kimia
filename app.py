@@ -1062,7 +1062,7 @@ def render_footer():
         Selalu rujuk SDS (Safety Data Sheet) resmi untuk informasi keselamatan yang lengkap dan akurat.
         </p>
         <p style="font-size: 0.75rem; margin-top: 1rem;">
-        Dibuat dengan ❤️ menggunakan Streamlit | © 2024
+        Dibuat dengan ❤️ menggunakan Streamlit | © 2026
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -1073,18 +1073,18 @@ def render_quick_search():
     st.markdown("### 🔥 Pencarian Cepat")
     
     common_compounds = [
-        ('Methanol', '⚗️'),
-        ('Ethanol', '🍷'),
-        ('Acetone', '💅'),
-        ('Sulfuric acid', '🧪'),
-        ('Hydrochloric acid', '🧪'),
-        ('Sodium hydroxide', '🧂'),
-        ('Hydrogen peroxide', '💧'),
-        ('Benzene', '⛽'),
-        ('Formaldehyde', '🏠'),
-        ('Ammonia', '💨'),
-        ('Toluene', '🎨'),
-        ('Nitric acid', '🧪'),
+        ('Methanol',),
+        ('Ethanol',),
+        ('Acetone',),
+        ('Sulfuric acid',),
+        ('Hydrochloric acid',),
+        ('Sodium hydroxide',),
+        ('Hydrogen peroxide',),
+        ('Benzene',),
+        ('Formaldehyde',),
+        ('Ammonia',),
+        ('Toluene',),
+        ('Nitric acid',),
     ]
     
     cols = st.columns(4)
