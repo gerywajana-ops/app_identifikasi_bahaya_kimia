@@ -1073,18 +1073,18 @@ def render_quick_search():
     st.markdown("### 🔥 Pencarian Cepat")
     
     common_compounds = [
-        ('Methanol',),
-        ('Ethanol',),
-        ('Acetone',),
-        ('Sulfuric acid',),
-        ('Hydrochloric acid',),
-        ('Sodium hydroxide',),
-        ('Hydrogen peroxide',),
-        ('Benzene',),
-        ('Formaldehyde',),
-        ('Ammonia',),
-        ('Toluene',),
-        ('Nitric acid',),
+        ('Methanol'),
+        ('Ethanol'),
+        ('Acetone'),
+        ('Sulfuric acid'),
+        ('Hydrochloric acid'),
+        ('Sodium hydroxide'),
+        ('Hydrogen peroxide'),
+        ('Benzene'),
+        ('Formaldehyde'),
+        ('Ammonia'),
+        ('Toluene'),
+        ('Nitric acid'),
     ]
     
     cols = st.columns(4)
