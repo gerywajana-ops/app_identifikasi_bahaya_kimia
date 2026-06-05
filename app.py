@@ -1062,7 +1062,7 @@ def render_footer():
         Selalu rujuk SDS (Safety Data Sheet) resmi untuk informasi keselamatan yang lengkap dan akurat.
         </p>
         <p style="font-size: 0.75rem; margin-top: 1rem;">
-        Dibuat dengan ❤️ menggunakan Streamlit | © 2026
+        Dibuat dengan ❤️ oleh kelompok 2 | © 2026
         </p>
     </div>
     """, unsafe_allow_html=True)
