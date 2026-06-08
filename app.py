@@ -989,6 +989,27 @@ def extract_nfpa_data(pug_view_json: dict) -> dict:
         
     return nfpa_data
 
+# Contoh penerapan di UI Streamlit kamu
+nfpa = extract_nfpa_data(response_json)
+
+st.subheader("Visualisasi NFPA 704 Diamond")
+
+# Jika semua datanya N/A, beri tahu pengguna
+if all(v == "N/A" for v in nfpa.values()):
+    st.warning("Data NFPA tidak tersedia untuk senyawa ini di PubChem.")
+else:
+    # Membuat Diamond sederhana menggunakan HTML & CSS Kotak Berputar (45 derajat)
+    # Anda juga bisa menampilkannya menggunakan kolom biasa di Streamlit agar lebih aman:
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(label="🔵 Kesehatan (Health)", value=nfpa["Health"])
+    with col2:
+        st.metric(label="🔴 Kemudahan Terbakar (Flammability)", value=nfpa["Flammability"])
+    with col3:
+        st.metric(label="🟡 Instabilitas (Instability)", value=nfpa["Instability"])
+    with col4:
+        st.metric(label="⚪ Bahaya Khusus (Special)", value=nfpa["Special"])
+
 
 def render_precautionary_statements(cid: int):
     """Render pernyataan pencegahan"""
