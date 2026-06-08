@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ini #!/usr/bin/env python3
 """
 Chemical Hazard Identifier - Streamlit Application
 Aplikasi identifikasi bahaya kimia menggunakan PubChem API dan GHS Classification
@@ -937,6 +937,57 @@ def render_nfpa_diamond(cid: int):
     
     if nfpa['special']:
         st.info(f"**Special Hazard:** {nfpa['special']}")
+        
+def extract_nfpa_data(pug_view_json: dict) -> dict:
+    """
+    Mengekstrak data NFPA 704 (Health, Flammability, Instability, Special)
+    dari response JSON PUG View PubChem.
+    """
+    nfpa_data = {
+        "Health": "N/A",
+        "Flammability": "N/A",
+        "Instability": "N/A",
+        "Special": "N/A"
+    }
+    
+    try:
+        # Masuk ke struktur utama Record -> Section
+        sections = pug_view_json.get("Record", {}).get("Section", [])
+        
+        # Cari Section "Chemical Safety"
+        chem_safety_sec = next((s for s in sections if s.get("TOCHeading") == "Chemical Safety"), None)
+        
+        if chem_safety_sec:
+            # Cari Subsection "NFPA Diamond"
+            sub_sections = chem_safety_sec.get("Section", [])
+            nfpa_sec = next((s for s in sub_sections if s.get("TOCHeading") == "NFPA Diamond"), None)
+            
+            if nfpa_sec:
+                # Ambil baris informasi di dalamnya
+                info_list = nfpa_sec.get("Information", [])
+                
+                for info in info_list:
+                    # PubChem seringkali menyimpan nilai NFPA dalam bentuk teks/string atau sub-nilai
+                    name = info.get("Name", "")
+                    value_list = info.get("Value", {}).get("StringWithMarkup", [])
+                    
+                    if value_list:
+                        actual_value = value_list[0].get("String", "N/A")
+                        
+                        # Petakan ke masing-masing kategori NFPA
+                        if "Health" in name:
+                            nfpa_data["Health"] = actual_value
+                        elif "Flammability" in name:
+                            nfpa_data["Flammability"] = actual_value
+                        elif "Instability" in name or "Reactivity" in name:
+                            nfpa_data["Instability"] = actual_value
+                        elif "Special" in name:
+                            nfpa_data["Special"] = actual_value
+                            
+    except Exception as e:
+        print(f"Error parsing NFPA: {e}")
+        
+    return nfpa_data
 
 
 def render_precautionary_statements(cid: int):
