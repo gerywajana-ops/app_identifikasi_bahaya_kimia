@@ -523,31 +523,43 @@ def get_nfpa_diamond(cid: int) -> Dict:
     """Mendapatkan rating NFPA 704 Diamond (jika tersedia)"""
     nfpa = {'health': 'N/A', 'flammability': 'N/A', 'reactivity': 'N/A', 'special': ''}
     try:
+        # Panggil API PUG View khusus untuk NFPA 704 Diamond
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=NFPA+704+Diamond"
         response = requests.get(url, timeout=10)
+        
         if response.status_code == 200:
             data = response.json()
             sections = data.get('Record', {}).get('Section', [])
+            
             for section in sections:
                 info = section.get('Information', [])
                 for item in info:
-                    value = item.get('Value', {})
-                    if 'StringWithMarkup' in value:
-                        for markup in value['StringWithMarkup']:
-                            string = markup.get('String', '')
-                            if 'Health' in string:
-                                nfpa['health'] = string.split(':')[-1].strip()
-                            elif 'Flammability' in string:
-                                nfpa['flammability'] = string.split(':')[-1].strip()
-                            elif 'Stability' in string or 'Reactivity' in string:
-                                nfpa['reactivity'] = string.split(':')[-1].strip()
-                            elif 'Special' in string:
-                                nfpa['special'] = string.split(':')[-1].strip()
-    except:
-        pass
-    
+                    # Ambil nama parameter (Health, Flammability, dll)
+                    name = item.get('Name', '')
+                    value_obj = item.get('Value', {})
+                    
+                    # Ambil nilai string yang ada di dalam StringWithMarkup
+                    if 'StringWithMarkup' in value_obj:
+                        markup_list = value_obj.get('StringWithMarkup', [])
+                        if markup_list:
+                            # Mengambil karakter pertama angka rating (misal: "3" dari "3 out of 4")
+                            raw_string = markup_list[0].get('String', 'N/A')
+                            actual_value = raw_string.strip()[0] if raw_string and raw_string.strip()[0].isdigit() else raw_string.strip()
+                            
+                            # Jalankan pencocokan nama secara presisi sesuai response PubChem
+                            if 'Health' in name:
+                                nfpa['health'] = actual_value
+                            elif 'Flammability' in name:
+                                nfpa['flammability'] = actual_value
+                            elif 'Instability' in name or 'Reactivity' in name:
+                                nfpa['reactivity'] = actual_value
+                            elif 'Special' in name:
+                                # Bahaya khusus biasanya berupa kode huruf (W dengan garis, OX, dll)
+                                nfpa['special'] = raw_string.strip()
+    except Exception as e:
+        print(f"Error fetching NFPA Diamond: {e}")
+        
     return nfpa
-
 
 def get_cas_number(cid: int) -> str:
     """Mendapatkan nomor CAS"""
