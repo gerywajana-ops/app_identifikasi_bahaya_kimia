@@ -520,48 +520,42 @@ def get_precautionary_statements(cid: int) -> List[str]:
 
 
 def get_nfpa_diamond(cid: int) -> Dict:
-    """Mendapatkan rating NFPA 704 Diamond dengan menyisir JSON secara mendalam"""
+    """Mendapatkan rating NFPA 704 Diamond dengan regex/pencarian string langsung"""
     nfpa = {'health': 'N/A', 'flammability': 'N/A', 'reactivity': 'N/A', 'special': ''}
     try:
-        # Tembak endpoint umum tanpa filter heading agar data pasti amandan lengkap
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
-        response = requests.get(url, timeout=12)
+        # Gunakan endpoint khusus NFPA agar datanya ringkas dan cepat ditarik
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=NFPA+704+Diamond"
+        response = requests.get(url, timeout=10)
         
+        # Jika endpoint khusus gagal, gunakan endpoint umum sebagai cadangan
+        if response.status_code != 200:
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
+            response = requests.get(url, timeout=10)
+            
         if response.status_code == 200:
-            data = response.json()
-            sections = data.get('Record', {}).get('Section', [])
+            # Mengubah seluruh response menjadi string teks biasa agar mudah dicari tanpa peduli nested dict
+            json_text = response.text
+            import re
             
-            # Cari section Chemical Safety
-            chem_safety = next((s for s in sections if s.get('TOCHeading') == 'Chemical Safety'), None)
-            if not chem_safety:
-                # Fallback: Cari di seluruh section utama jika TOCHeading berbeda
-                chem_safety = {'Section': sections}
+            # PubChem biasanya menuliskan: "Health: 3", "Flammability: 2", "Instability: 0"
+            # Kita gunakan regex (ignore case) untuk menangkap angka setelah kata kunci tersebut
+            health_match = re.search(r'"Name"\s*:\s*"Health"[^}]+?"String"\s*:\s*"(\d)"', json_text, re.IGNORECASE)
+            flam_match = re.search(r'"Name"\s*:\s*"Flammability"[^}]+?"String"\s*:\s*"(\d)"', json_text, re.IGNORECASE)
+            react_match = re.search(r'"Name"\s*:\s*"(Instability|Reactivity)"[^}]+?"String"\s*:\s*"(\d)"', json_text, re.IGNORECASE)
+            special_match = re.search(r'"Name"\s*:\s*"Special"[^}]+?"String"\s*:\s*"([^"]+)"', json_text, re.IGNORECASE)
+            
+            if health_match:
+                nfpa['health'] = health_match.group(1)
+            if flam_match:
+                nfpa['flammability'] = flam_match.group(1)
+            if react_match:
+                # Karena kelompok reaktivitas ada di grup kedua pada regex-nya
+                nfpa['reactivity'] = react_match.group(2)
+            if special_match:
+                nfpa['special'] = special_match.group(1).strip()
                 
-            # Cari sub-section NFPA
-            sub_sections = chem_safety.get('Section', [])
-            nfpa_sec = next((s for s in sub_sections if 'NFPA' in s.get('TOCHeading', '')), None)
-            
-            if nfpa_sec:
-                info_list = nfpa_sec.get('Information', [])
-                for info in info_list:
-                    name = info.get('Name', '')
-                    value_list = info.get('Value', {}).get('StringWithMarkup', [])
-                    
-                    if value_list:
-                        raw_string = value_list[0].get('String', 'N/A')
-                        # Ambil angka depan saja (misal "3" dari "3 out of 4")
-                        actual_value = raw_string.strip()[0] if raw_string and raw_string.strip()[0].isdigit() else raw_string.strip()
-                        
-                        if 'Health' in name:
-                            nfpa['health'] = actual_value
-                        elif 'Flammability' in name:
-                            nfpa['flammability'] = actual_value
-                        elif 'Instability' in name or 'Reactivity' in name:
-                            nfpa['reactivity'] = actual_value
-                        elif 'Special' in name:
-                            nfpa['special'] = raw_string.strip()
     except Exception as e:
-        print(f"Error fetching NFPA Diamond: {e}")
+        print(f"Error khusus NFPA Diamond: {e}")
         
     return nfpa
     
