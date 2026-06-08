@@ -520,47 +520,51 @@ def get_precautionary_statements(cid: int) -> List[str]:
 
 
 def get_nfpa_diamond(cid: int) -> Dict:
-    """Mendapatkan rating NFPA 704 Diamond (jika tersedia)"""
+    """Mendapatkan rating NFPA 704 Diamond dengan menyisir JSON secara mendalam"""
     nfpa = {'health': 'N/A', 'flammability': 'N/A', 'reactivity': 'N/A', 'special': ''}
     try:
-        # Panggil API PUG View khusus untuk NFPA 704 Diamond
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=NFPA+704+Diamond"
-        response = requests.get(url, timeout=10)
+        # Tembak endpoint umum tanpa filter heading agar data pasti amandan lengkap
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
+        response = requests.get(url, timeout=12)
         
         if response.status_code == 200:
             data = response.json()
             sections = data.get('Record', {}).get('Section', [])
             
-            for section in sections:
-                info = section.get('Information', [])
-                for item in info:
-                    # Ambil nama parameter (Health, Flammability, dll)
-                    name = item.get('Name', '')
-                    value_obj = item.get('Value', {})
+            # Cari section Chemical Safety
+            chem_safety = next((s for s in sections if s.get('TOCHeading') == 'Chemical Safety'), None)
+            if not chem_safety:
+                # Fallback: Cari di seluruh section utama jika TOCHeading berbeda
+                chem_safety = {'Section': sections}
+                
+            # Cari sub-section NFPA
+            sub_sections = chem_safety.get('Section', [])
+            nfpa_sec = next((s for s in sub_sections if 'NFPA' in s.get('TOCHeading', '')), None)
+            
+            if nfpa_sec:
+                info_list = nfpa_sec.get('Information', [])
+                for info in info_list:
+                    name = info.get('Name', '')
+                    value_list = info.get('Value', {}).get('StringWithMarkup', [])
                     
-                    # Ambil nilai string yang ada di dalam StringWithMarkup
-                    if 'StringWithMarkup' in value_obj:
-                        markup_list = value_obj.get('StringWithMarkup', [])
-                        if markup_list:
-                            # Mengambil karakter pertama angka rating (misal: "3" dari "3 out of 4")
-                            raw_string = markup_list[0].get('String', 'N/A')
-                            actual_value = raw_string.strip()[0] if raw_string and raw_string.strip()[0].isdigit() else raw_string.strip()
-                            
-                            # Jalankan pencocokan nama secara presisi sesuai response PubChem
-                            if 'Health' in name:
-                                nfpa['health'] = actual_value
-                            elif 'Flammability' in name:
-                                nfpa['flammability'] = actual_value
-                            elif 'Instability' in name or 'Reactivity' in name:
-                                nfpa['reactivity'] = actual_value
-                            elif 'Special' in name:
-                                # Bahaya khusus biasanya berupa kode huruf (W dengan garis, OX, dll)
-                                nfpa['special'] = raw_string.strip()
+                    if value_list:
+                        raw_string = value_list[0].get('String', 'N/A')
+                        # Ambil angka depan saja (misal "3" dari "3 out of 4")
+                        actual_value = raw_string.strip()[0] if raw_string and raw_string.strip()[0].isdigit() else raw_string.strip()
+                        
+                        if 'Health' in name:
+                            nfpa['health'] = actual_value
+                        elif 'Flammability' in name:
+                            nfpa['flammability'] = actual_value
+                        elif 'Instability' in name or 'Reactivity' in name:
+                            nfpa['reactivity'] = actual_value
+                        elif 'Special' in name:
+                            nfpa['special'] = raw_string.strip()
     except Exception as e:
         print(f"Error fetching NFPA Diamond: {e}")
         
     return nfpa
-
+    
 def get_cas_number(cid: int) -> str:
     """Mendapatkan nomor CAS"""
     try:
@@ -949,79 +953,6 @@ def render_nfpa_diamond(cid: int):
     
     if nfpa['special']:
         st.info(f"**Special Hazard:** {nfpa['special']}")
-        
-def extract_nfpa_data(pug_view_json: dict) -> dict:
-    """
-    Mengekstrak data NFPA 704 (Health, Flammability, Instability, Special)
-    dari response JSON PUG View PubChem.
-    """
-    nfpa_data = {
-        "Health": "N/A",
-        "Flammability": "N/A",
-        "Instability": "N/A",
-        "Special": "N/A"
-    }
-    
-    try:
-        # Masuk ke struktur utama Record -> Section
-        sections = pug_view_json.get("Record", {}).get("Section", [])
-        
-        # Cari Section "Chemical Safety"
-        chem_safety_sec = next((s for s in sections if s.get("TOCHeading") == "Chemical Safety"), None)
-        
-        if chem_safety_sec:
-            # Cari Subsection "NFPA Diamond"
-            sub_sections = chem_safety_sec.get("Section", [])
-            nfpa_sec = next((s for s in sub_sections if s.get("TOCHeading") == "NFPA Diamond"), None)
-            
-            if nfpa_sec:
-                # Ambil baris informasi di dalamnya
-                info_list = nfpa_sec.get("Information", [])
-                
-                for info in info_list:
-                    # PubChem seringkali menyimpan nilai NFPA dalam bentuk teks/string atau sub-nilai
-                    name = info.get("Name", "")
-                    value_list = info.get("Value", {}).get("StringWithMarkup", [])
-                    
-                    if value_list:
-                        actual_value = value_list[0].get("String", "N/A")
-                        
-                        # Petakan ke masing-masing kategori NFPA
-                        if "Health" in name:
-                            nfpa_data["Health"] = actual_value
-                        elif "Flammability" in name:
-                            nfpa_data["Flammability"] = actual_value
-                        elif "Instability" in name or "Reactivity" in name:
-                            nfpa_data["Instability"] = actual_value
-                        elif "Special" in name:
-                            nfpa_data["Special"] = actual_value
-                            
-    except Exception as e:
-        print(f"Error parsing NFPA: {e}")
-        
-    return nfpa_data
-
-# Contoh penerapan di UI Streamlit kamu
-nfpa = extract_nfpa_data(response_json)
-
-st.subheader("Visualisasi NFPA 704 Diamond")
-
-# Jika semua datanya N/A, beri tahu pengguna
-if all(v == "N/A" for v in nfpa.values()):
-    st.warning("Data NFPA tidak tersedia untuk senyawa ini di PubChem.")
-else:
-    # Membuat Diamond sederhana menggunakan HTML & CSS Kotak Berputar (45 derajat)
-    # Anda juga bisa menampilkannya menggunakan kolom biasa di Streamlit agar lebih aman:
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric(label="🔵 Kesehatan (Health)", value=nfpa["Health"])
-    with col2:
-        st.metric(label="🔴 Kemudahan Terbakar (Flammability)", value=nfpa["Flammability"])
-    with col3:
-        st.metric(label="🟡 Instabilitas (Instability)", value=nfpa["Instability"])
-    with col4:
-        st.metric(label="⚪ Bahaya Khusus (Special)", value=nfpa["Special"])
-
 
 def render_precautionary_statements(cid: int):
     """Render pernyataan pencegahan"""
