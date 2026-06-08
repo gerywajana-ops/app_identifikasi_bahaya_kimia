@@ -520,42 +520,61 @@ def get_precautionary_statements(cid: int) -> List[str]:
 
 
 def get_nfpa_diamond(cid: int) -> Dict:
-    """Mendapatkan rating NFPA 704 Diamond dengan regex/pencarian string langsung"""
+    """Mendapatkan rating NFPA 704 Diamond dengan pemindaian JSON menyeluruh"""
     nfpa = {'health': 'N/A', 'flammability': 'N/A', 'reactivity': 'N/A', 'special': ''}
     try:
-        # Gunakan endpoint khusus NFPA agar datanya ringkas dan cepat ditarik
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON/?heading=NFPA+704+Diamond"
-        response = requests.get(url, timeout=10)
+        # Gunakan API utama tanpa filter heading agar struktur datanya utuh
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
+        response = requests.get(url, timeout=15)
         
-        # Jika endpoint khusus gagal, gunakan endpoint umum sebagai cadangan
-        if response.status_code != 200:
-            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON"
-            response = requests.get(url, timeout=10)
-            
         if response.status_code == 200:
-            # Mengubah seluruh response menjadi string teks biasa agar mudah dicari tanpa peduli nested dict
-            json_text = response.text
-            import re
+            data = response.json()
             
-            # PubChem biasanya menuliskan: "Health: 3", "Flammability: 2", "Instability: 0"
-            # Kita gunakan regex (ignore case) untuk menangkap angka setelah kata kunci tersebut
-            health_match = re.search(r'"Name"\s*:\s*"Health"[^}]+?"String"\s*:\s*"(\d)"', json_text, re.IGNORECASE)
-            flam_match = re.search(r'"Name"\s*:\s*"Flammability"[^}]+?"String"\s*:\s*"(\d)"', json_text, re.IGNORECASE)
-            react_match = re.search(r'"Name"\s*:\s*"(Instability|Reactivity)"[^}]+?"String"\s*:\s*"(\d)"', json_text, re.IGNORECASE)
-            special_match = re.search(r'"Name"\s*:\s*"Special"[^}]+?"String"\s*:\s*"([^"]+)"', json_text, re.IGNORECASE)
+            # Fungsi internal untuk mencari node "NFPA 704 Diamond" di manapun dia berada
+            def find_nfpa_section(node):
+                if isinstance(node, dict):
+                    if node.get('TOCHeading') == 'NFPA 704 Diamond':
+                        return node
+                    for key, value in node.items():
+                        result = find_nfpa_section(value)
+                        if result:
+                            return result
+                elif isinstance(node, list):
+                    for item in node:
+                        result = find_nfpa_section(item)
+                        if result:
+                            return result
+                return None
+
+            nfpa_node = find_nfpa_section(data)
             
-            if health_match:
-                nfpa['health'] = health_match.group(1)
-            if flam_match:
-                nfpa['flammability'] = flam_match.group(1)
-            if react_match:
-                # Karena kelompok reaktivitas ada di grup kedua pada regex-nya
-                nfpa['reactivity'] = react_match.group(2)
-            if special_match:
-                nfpa['special'] = special_match.group(1).strip()
-                
+            # Jika bagian NFPA ditemukan, ekstrak nilainya
+            if nfpa_node:
+                info_list = nfpa_node.get('Information', [])
+                for info in info_list:
+                    name = info.get('Name', '')
+                    value_obj = info.get('Value', {})
+                    
+                    if 'StringWithMarkup' in value_obj:
+                        markup_list = value_obj.get('StringWithMarkup', [])
+                        if markup_list:
+                            raw_string = markup_list[0].get('String', '').strip()
+                            
+                            # PubChem memberikan nilai seperti "3 out of 4" atau hanya "2"
+                            # Kita ambil karakter angka pertamanya saja
+                            clean_value = raw_string[0] if raw_string and raw_string[0].isdigit() else raw_string
+                            
+                            if 'Health' in name:
+                                nfpa['health'] = clean_value
+                            elif 'Flammability' in name:
+                                nfpa['flammability'] = clean_value
+                            elif 'Instability' in name or 'Reactivity' in name:
+                                nfpa['reactivity'] = clean_value
+                            elif 'Special' in name:
+                                nfpa['special'] = raw_string if raw_string != 'none' else ''
+                                
     except Exception as e:
-        print(f"Error khusus NFPA Diamond: {e}")
+        print(f"Error deep parsing NFPA: {e}")
         
     return nfpa
     
