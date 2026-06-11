@@ -1,4 +1,4 @@
-ini #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Chemical Hazard Identifier - Streamlit Application
 Aplikasi identifikasi bahaya kimia menggunakan PubChem API dan GHS Classification
