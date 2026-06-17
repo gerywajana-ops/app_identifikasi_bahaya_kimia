@@ -1141,8 +1141,6 @@ def main():
                         st.divider()
                         render_hazard_classification(compound.hazards, cid)
                         st.divider()
-                        render_nfpa_diamond(cid)  # <-- HAPUS BARIS INI
-                        st.divider()              # <-- HAPUS BARIS INI
                         render_precautionary_statements(cid)
                     
                     with tab3:
