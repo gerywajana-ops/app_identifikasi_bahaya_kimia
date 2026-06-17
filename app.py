@@ -790,7 +790,6 @@ def render_pictograms(hazards: List[HazardInfo]):
     for h in hazards:
         if not h or not hasattr(h, 'statement'):
             continue
-            
         stmt_text = ""
         if h.statement:
             stmt_text += " " + str(h.statement).lower()
@@ -798,7 +797,7 @@ def render_pictograms(hazards: List[HazardInfo]):
             stmt_text += " " + str(h.pictogram_code).lower()
         if h.pictogram_name:
             stmt_text += " " + str(h.pictogram_name).lower()
-
+            
         if 'flamm' in stmt_text or 'pyrophor' in stmt_text:
             detected_codes.add('GHS02')
         if 'toxic' in stmt_text or 'fatal' in stmt_text or 'poison' in stmt_text:
@@ -818,10 +817,10 @@ def render_pictograms(hazards: List[HazardInfo]):
         if 'aquatic' in stmt_text or 'toxic to aqua' in stmt_text or 'environment' in stmt_text:
             detected_codes.add('GHS09')
 
-    # Filter ketat agar hanya kode GHS valid yang diproses
-    detected_codes = {code for code in detected_codes if code and str(code).startswith('GHS')}
+    # Memastikan kode bersih dan tidak ada duplikasi
+    valid_codes = sorted(list({code for code in detected_codes if code and str(code).startswith('GHS')}))
 
-    if not detected_codes:
+    if not valid_codes:
         st.info("Senyawa tergolong aman atau tidak memerlukan piktogram bahaya GHS khusus.")
         return
 
@@ -837,15 +836,12 @@ def render_pictograms(hazards: List[HazardInfo]):
         'GHS09': 'Environmental Hazard (Bahaya Lingkungan)'
     }
 
-    # Membuat tata letak grid menggunakan st.columns bawaan Streamlit
-    valid_codes = sorted(list(detected_codes))
-    cols = st.columns(min(len(valid_codes), 4))
-    
+    # Tampilkan dalam grid kolom yang pas tanpa double render
+    cols = st.columns(max(len(valid_codes), 1))
     for i, code in enumerate(valid_codes):
         url = get_pictogram_url(code)
-        with cols[i % 4]:
+        with cols[i]:
             if url:
-                # Menampilkan gambar PNG langsung via komponen st.image yang aman
                 st.image(url, caption=ghs_names.get(code, code), use_container_width=True)
             else:
                 st.warning(f"⚠️ {ghs_names.get(code, code)}")
