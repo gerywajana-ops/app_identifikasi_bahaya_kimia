@@ -1141,8 +1141,6 @@ def main():
                             render_synonyms(compound.synonyms)
                     
                     with tab2:
-                        render_pictograms(compound.hazards)
-                        st.divider()
                         render_hazard_classification(compound.hazards, cid)
                         st.divider()
                         render_precautionary_statements(cid)
