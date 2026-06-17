@@ -669,7 +669,15 @@ def render_sidebar():
         🟢 <b>Rendah</b> - Bahaya minimal, tetap berhati-hati
         </div>
         """, unsafe_allow_html=True)
-
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 👥 Anggota Kelompok 2")
+        st.sidebar.info("""
+        1. **Kayla Nasywa** (2560656)
+        2. **Muhammad Rafly Prasetio** (2560688)
+        3. **Nur Asyifa Ninawati Mansur** (2560732)
+        4. **Nurma Shintia Oktavia** (2560733)
+        5. **Reyga Rizti Khalifah** (2560752)
+        """)
 
 def render_hazard_badge(severity: str) -> str:
     """Render badge tingkat bahaya"""
