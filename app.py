@@ -254,107 +254,85 @@ def get_ghs_hazards(cid: int) -> List[HazardInfo]:
     return hazards
     
 def parse_hazard_statement(statement: str) -> HazardInfo:
-    """Parse pernyataan bahaya menjadi objek HazardInfo"""
+    """Parse pernyataan bahaya menjadi objek HazardInfo (Versi Emoji & Bahasa Indonesia)"""
     statement = statement.lower()
-    
     if 'explosive' in statement or 'explosion' in statement:
-        return HazardInfo('Fisika', 'Explosive', statement, 'GHS01', 'Bahaya Ledakan', 'high')
+        return HazardInfo('Fisika', 'Explosive', 'Mudah meledak; bahaya ledakan massal', '💥', 'Bahaya Ledakan', 'high')
     elif 'flammable' in statement or 'flammability' in statement or 'fire' in statement:
-        return HazardInfo('Fisika', 'Flammable', statement, 'GHS02', 'Bahaya Api', 'high')
+        return HazardInfo('Fisika', 'Flammable', 'Cairan atau gas sangat mudah terbakar', '🔥', 'Bahaya Api', 'high')
     elif 'oxidiz' in statement:
-        return HazardInfo('Fisika', 'Oxidizing', statement, 'GHS03', 'Mengoksidasi', 'high')
+        return HazardInfo('Fisika', 'Oxidizing', 'Dapat mengobarkan api; pengoksidasi', '⭕', 'Mengoksidasi', 'high')
     elif 'compressed' in statement or 'gas' in statement:
-        return HazardInfo('Fisika', 'Compressed Gas', statement, 'GHS04', 'Gas Bertekanan', 'medium')
+        return HazardInfo('Fisika', 'Compressed Gas', 'Mengandung gas bertekanan; dapat meledak jika dipanaskan', '🍼', 'Gas Bertekanan', 'medium')
     elif 'corrosive' in statement or 'corrosivity' in statement:
-        return HazardInfo('Kesehatan', 'Corrosive', statement, 'GHS05', 'Korosif', 'high')
+        return HazardInfo('Kesehatan', 'Corrosive', 'Menyebabkan kulit terbakar parah dan kerusakan mata', '🧪', 'Korosif', 'high')
     elif 'toxic' in statement or 'acute toxicity' in statement:
-        return HazardInfo('Kesehatan', 'Acute Toxicity', statement, 'GHS06', 'Toksisitas Akut', 'high')
+        return HazardInfo('Kesehatan', 'Acute Toxicity', 'Beracun jika tertelan, terkena kulit, atau dihirup', '💀', 'Toksisitas Akut', 'high')
     elif 'harmful' in statement or 'health hazard' in statement:
-        return HazardInfo('Kesehatan', 'Health Hazard', statement, 'GHS08', 'Bahaya Kesehatan', 'medium')
+        return HazardInfo('Kesehatan', 'Health Hazard', 'Dapat menyebabkan kerusakan pada organ jangka panjang', '👤', 'Bahaya Kesehatan', 'medium')
     elif 'irritant' in statement or 'irritation' in statement:
-        return HazardInfo('Kesehatan', 'Irritant', statement, 'GHS07', 'Pengiritasi', 'medium')
+        return HazardInfo('Kesehatan', 'Irritant', 'Menyebabkan iritasi kulit dan mata serius', '⚠️', 'Pengiritasi', 'medium')
     elif 'environment' in statement or 'aquatic' in statement:
-        return HazardInfo('Lingkungan', 'Environmental Hazard', statement, 'GHS09', 'Bahaya Lingkungan', 'medium')
+        return HazardInfo('Lingkungan', 'Environmental Hazard', 'Sangat beracun bagi kehidupan akuatik dengan efek jangka panjang', '🐟', 'Bahaya Lingkungan', 'medium')
     else:
-        return HazardInfo('Umum', 'General Hazard', statement, 'GHS07', 'Bahaya Umum', 'low')
-
+        return HazardInfo('Umum', 'General Hazard', 'Berpotensi bahaya, tangani dengan hati-hati', '⚠️', 'Bahaya Umum', 'low')
 
 def parse_hazard_code(code: str) -> HazardInfo:
-    """Parse kode bahaya H-code menjadi objek HazardInfo"""
+    """Parse kode bahaya H-code menjadi objek HazardInfo dengan Emoji dan Bahasa Indonesia"""
     h_code = code.split(':')[0].strip()
     description = code.split(':')[1].strip() if ':' in code else code
     
-    # Mapping H-codes ke hazard classes
+    # Mapping H-codes ke Emoji dan Bahasa Indonesia
+    # Format: 'H-Code': ('Kategori', 'Deskripsi Indonesia', 'Emoji', 'Tingkat Bahaya')
     h_mapping = {
-        'H200': ('Fisika', 'Bahaya Ledakan', 'GHS01', 'high'),
-        'H201': ('Fisika', 'Bahaya Ledakan', 'GHS01', 'high'),
-        'H202': ('Fisika', 'Bahaya Ledakan', 'GHS01', 'high'),
-        'H203': ('Fisika', 'Bahaya Ledakan', 'GHS01', 'medium'),
-        'H204': ('Fisika', 'Bahaya Ledakan', 'GHS01', 'medium'),
-        'H205': ('Fisika', 'Bahaya Ledakan', 'GHS01', 'medium'),
-        'H220': ('Fisika', 'Gas Sangat Mudah Terbakar', 'GHS02', 'high'),
-        'H221': ('Fisika', 'Gas Mudah Terbakar', 'GHS02', 'high'),
-        'H222': ('Fisika', 'Aerosol Mudah Terbakar', 'GHS02', 'high'),
-        'H223': ('Fisika', 'Aerosol Mudah Terbakar', 'GHS02', 'medium'),
-        'H224': ('Fisika', 'Cairan Sangat Mudah Terbakar', 'GHS02', 'high'),
-        'H225': ('Fisika', 'Cairan Mudah Terbakar', 'GHS02', 'high'),
-        'H226': ('Fisika', 'Cairan Mudah Terbakar', 'GHS02', 'medium'),
-        'H228': ('Fisika', 'Padatan Mudah Terbakar', 'GHS02', 'medium'),
-        'H240': ('Fisika', 'Mengoksidasi', 'GHS03', 'high'),
-        'H241': ('Fisika', 'Mengoksidasi', 'GHS03', 'high'),
-        'H242': ('Fisika', 'Mengoksidasi', 'GHS03', 'medium'),
-        'H250': ('Fisika', 'Pirit spontan di udara', 'GHS02', 'high'),
-        'H251': ('Fisika', 'Mudah terbakar; pengoksidasi', 'GHS03', 'high'),
-        'H252': ('Fisika', 'Mudah terbakar dalam jumlah besar', 'GHS02', 'medium'),
-        'H260': ('Fisika', 'Melepaskan gas mudah terbakar', 'GHS02', 'high'),
-        'H261': ('Fisika', 'Melepaskan gas mudah terbakar', 'GHS02', 'medium'),
-        'H270': ('Fisika', 'Mengoksidasi', 'GHS03', 'high'),
-        'H271': ('Fisika', 'Mengoksidasi', 'GHS03', 'high'),
-        'H272': ('Fisika', 'Mengoksidasi', 'GHS03', 'medium'),
-        'H280': ('Fisika', 'Gas Bertekanan', 'GHS04', 'medium'),
-        'H281': ('Fisika', 'Gas Bertekanan', 'GHS04', 'medium'),
-        'H290': ('Umum', 'Korosif untuk logam', 'GHS05', 'medium'),
-        'H300': ('Kesehatan', 'Toksisitas Akut', 'GHS06', 'high'),
-        'H301': ('Kesehatan', 'Toksisitas Akut', 'GHS06', 'high'),
-        'H302': ('Kesehatan', 'Toksisitas Akut', 'GHS07', 'medium'),
-        'H304': ('Kesehatan', 'Toksisitas Akut', 'GHS08', 'high'),
-        'H310': ('Kesehatan', 'Toksisitas Akut', 'GHS06', 'high'),
-        'H311': ('Kesehatan', 'Toksisitas Akut', 'GHS06', 'high'),
-        'H312': ('Kesehatan', 'Toksisitas Akut', 'GHS07', 'medium'),
-        'H314': ('Kesehatan', 'Korosif', 'GHS05', 'high'),
-        'H315': ('Kesehatan', 'Pengiritasi', 'GHS07', 'medium'),
-        'H317': ('Kesehatan', 'Alergi Kulit', 'GHS07', 'medium'),
-        'H318': ('Kesehatan', 'Korosif Serius Mata', 'GHS05', 'high'),
-        'H319': ('Kesehatan', 'Iritasi Serius Mata', 'GHS07', 'medium'),
-        'H330': ('Kesehatan', 'Toksisitas Akut', 'GHS06', 'high'),
-        'H331': ('Kesehatan', 'Toksisitas Akut', 'GHS06', 'high'),
-        'H332': ('Kesehatan', 'Toksisitas Akut', 'GHS07', 'medium'),
-        'H334': ('Kesehatan', 'Alergi Pernapasan', 'GHS08', 'high'),
-        'H335': ('Kesehatan', 'Iritasi Pernapasan', 'GHS07', 'medium'),
-        'H336': ('Kesehatan', 'Efek Narotik', 'GHS07', 'medium'),
-        'H340': ('Kesehatan', 'Mutagenisitas', 'GHS08', 'high'),
-        'H341': ('Kesehatan', 'Mutagenisitas', 'GHS08', 'medium'),
-        'H350': ('Kesehatan', 'Karsinogenik', 'GHS08', 'high'),
-        'H351': ('Kesehatan', 'Karsinogenik', 'GHS08', 'medium'),
-        'H360': ('Kesehatan', 'Reproduktif Toksisitas', 'GHS08', 'high'),
-        'H361': ('Kesehatan', 'Reproduktif Toksisitas', 'GHS08', 'medium'),
-        'H362': ('Kesehatan', 'Reproduktif Toksisitas', 'GHS08', 'medium'),
-        'H370': ('Kesehatan', 'Toksisitas Organ Target', 'GHS08', 'high'),
-        'H371': ('Kesehatan', 'Toksisitas Organ Target', 'GHS08', 'medium'),
-        'H372': ('Kesehatan', 'Toksisitas Organ Target', 'GHS08', 'high'),
-        'H373': ('Kesehatan', 'Toksisitas Organ Target', 'GHS08', 'medium'),
-        'H400': ('Lingkungan', 'Toksisitas Akuatik Akut', 'GHS09', 'high'),
-        'H410': ('Lingkungan', 'Toksisitas Akuatik Kronis', 'GHS09', 'high'),
-        'H411': ('Lingkungan', 'Toksisitas Akuatik Kronis', 'GHS09', 'medium'),
-        'H412': ('Lingkungan', 'Toksisitas Akuatik Kronis', 'GHS09', 'medium'),
-        'H413': ('Lingkungan', 'Toksisitas Akuatik Kronis', 'GHS09', 'low'),
+        'H200': ('Fisika', 'Mudah meledak tidak stabil', '💥', 'high'),
+        'H201': ('Fisika', 'Mudah meledak; bahaya ledakan massal', '💥', 'high'),
+        'H202': ('Fisika', 'Mudah meledak; bahaya proyeksi parah', '💥', 'high'),
+        'H203': ('Fisika', 'Mudah meledak; bahaya kebakaran, ledakan, atau proyeksi', '💥', 'medium'),
+        'H220': ('Fisika', 'Gas sangat mudah terbakar', '🔥', 'high'),
+        'H221': ('Fisika', 'Gas mudah terbakar', '🔥', 'high'),
+        'H224': ('Fisika', 'Cairan dan uap sangat mudah terbakar', '🔥', 'high'),
+        'H225': ('Fisika', 'Cairan dan uap amat mudah terbakar', '🔥', 'high'),
+        'H226': ('Fisika', 'Cairan dan uap mudah terbakar', '🔥', 'medium'),
+        'H228': ('Fisika', 'Padatan mudah terbakar', '🔥', 'medium'),
+        'H270': ('Fisika', 'Dapat menyalakan atau mengobarkan api; pengoksidasi', '⭕', 'high'),
+        'H271': ('Fisika', 'Dapat menyebabkan kebakaran atau ledakan hebat; pengoksidasi kuat', '⭕', 'high'),
+        'H272': ('Fisika', 'Dapat mengobarkan api; pengoksidasi', '⭕', 'medium'),
+        'H280': ('Fisika', 'Mengandung gas bertekanan; dapat meledak jika dipanaskan', '🍼', 'medium'),
+        'H290': ('Umum', 'Dapat korosif terhadap logam', '🧪', 'medium'),
+        'H300': ('Kesehatan', 'Fatal jika tertelan', '💀', 'high'),
+        'H301': ('Kesehatan', 'Beracun jika tertelan', '💀', 'high'),
+        'H302': ('Kesehatan', 'Berbahaya jika tertelan', '⚠️', 'medium'),
+        'H304': ('Kesehatan', 'Dapat fatal jika tertelan dan memasuki saluran udara', '👤', 'high'),
+        'H310': ('Kesehatan', 'Fatal jika terkena kulit', '💀', 'high'),
+        'H311': ('Kesehatan', 'Beracun jika terkena kulit', '💀', 'high'),
+        'H312': ('Kesehatan', 'Berbahaya jika terkena kulit', '⚠️', 'medium'),
+        'H314': ('Kesehatan', 'Menyebabkan kulit terbakar parah dan kerusakan mata', '🧪', 'high'),
+        'H315': ('Kesehatan', 'Menyebabkan iritasi kulit', '⚠️', 'medium'),
+        'H317': ('Kesehatan', 'Dapat menyebabkan alergi kulit', '⚠️', 'medium'),
+        'H318': ('Kesehatan', 'Menyebabkan kerusakan serius pada mata', '🧪', 'high'),
+        'H319': ('Kesehatan', 'Menyebabkan iritasi mata serius', '⚠️', 'medium'),
+        'H330': ('Kesehatan', 'Fatal jika dihirup', '💀', 'high'),
+        'H331': ('Kesehatan', 'Beracun jika dihirup', '💀', 'high'),
+        'H332': ('Kesehatan', 'Berbahaya jika dihirup', '⚠️', 'medium'),
+        'H334': ('Kesehatan', 'Dapat menyebabkan gejala alergi atau asma jika dihirup', '👤', 'high'),
+        'H335': ('Kesehatan', 'Dapat menyebabkan iritasi pernapasan', '⚠️', 'medium'),
+        'H336': ('Kesehatan', 'Dapat menyebabkan mengantuk atau pusing', '⚠️', 'medium'),
+        'H340': ('Kesehatan', 'Dapat menyebabkan kerusakan genetik', '👤', 'high'),
+        'H350': ('Kesehatan', 'Dapat menyebabkan kanker', '👤', 'high'),
+        'H360': ('Kesehatan', 'Dapat merusak kesuburan atau janin', '👤', 'high'),
+        'H370': ('Kesehatan', 'Menyebabkan kerusakan pada organ', '👤', 'high'),
+        'H372': ('Kesehatan', 'Menyebabkan kerusakan pada organ melalui paparan jangka panjang', '👤', 'high'),
+        'H400': ('Lingkungan', 'Sangat beracun bagi kehidupan akuatik', '🐟', 'high'),
+        'H410': ('Lingkungan', 'Sangat beracun bagi kehidupan akuatik dengan efek jangka panjang', '🐟', 'high'),
+        'H411': ('Lingkungan', 'Beracun bagi kehidupan akuatik dengan efek jangka panjang', '🐟', 'medium'),
     }
     
-    hazard_class, pictogram_name, pictogram_code, severity = h_mapping.get(
-        h_code, ('Umum', 'Bahaya Umum', 'GHS07', 'low')
+    hazard_class, final_description, emoji, severity = h_mapping.get(
+        h_code, ('Umum', description, '⚠️', 'low')
     )
-    
-    return HazardInfo(hazard_class, h_code, description, pictogram_code, pictogram_name, severity)
+
+    return HazardInfo(hazard_class, h_code, final_description, emoji, hazard_class, severity)
 
 
 def get_pictogram_url(pictogram_code: str) -> str:
@@ -865,9 +843,8 @@ def render_pictograms(hazards: List[HazardInfo]):
                 st.warning(f"⚠️ {ghs_names.get(code, code)}")
                 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
-    """Render klasifikasi bahaya lengkap dengan pemaksaan warna teks gelap agar terbaca"""
-    st.markdown("### 🏷️ Klasifikasi Bahaya GHS")
-    
+   # Contoh penulisan di dalam looping tabel/list klasifikasi bahaya Anda:
+st.markdown(f"### {info.pictogram} {info.code}: {info.description}")
     all_hazards = get_all_hazard_info(cid)
     
     if not all_hazards and not hazards:
