@@ -884,9 +884,7 @@ def render_hazard_classification(hazards: List[HazardInfo], cid: int):
         
 def render_nfpa_diamond(cid: int):
     """Render NFPA 704 Diamond"""
-    nfpa = get_nfpa_diamond(cid)
-    
-    st.markdown("### 🔷 NFPA 704 Diamond")
+
     
     col1, col2, col3 = st.columns([1, 1, 1])
     
