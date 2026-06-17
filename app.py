@@ -843,8 +843,8 @@ def render_pictograms(hazards: List[HazardInfo]):
                 st.warning(f"⚠️ {ghs_names.get(code, code)}")
                 
 def render_hazard_classification(hazards: List[HazardInfo], cid: int):
-   # Contoh penulisan di dalam looping tabel/list klasifikasi bahaya Anda:
-   st.markdown(f"### {info.pictogram} {info.code}: {info.description}")
+    # Contoh penulisan di dalam looping tabel/list klasifikasi bahaya Anda:
+    st.markdown(f"### {info.pictogram} {info.code}: {info.description}")
     all_hazards = get_all_hazard_info(cid)
     
     if not all_hazards and not hazards:
