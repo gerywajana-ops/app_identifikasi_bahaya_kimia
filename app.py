@@ -852,6 +852,31 @@ def render_hazard_classification(hazards: List[HazardInfo], cid: int):
     health_hazards = [h for h in hazards if h.hazard_class == 'Kesehatan']
     env_hazards = [h for h in hazards if h.hazard_class == 'Lingkungan']
 
+    st.markdown("### 📋 Klasifikasi Bahaya GHS")
+    
+    # 1. Bahaya Fisika
+    if physical_hazards:
+        st.markdown('<div class="hazard-card hazard-physical">', unsafe_allow_html=True)
+        st.markdown("#### 🔥 Bahaya Fisik")
+        for h in physical_hazards:
+            st.markdown(f'<div class="hazard-statement">{h.pictogram_code} <b>{h.category}</b>: {h.statement} {render_hazard_badge(h.severity)}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # 2. Bahaya Kesehatan
+    if health_hazards:
+        st.markdown('<div class="hazard-card hazard-health">', unsafe_allow_html=True)
+        st.markdown("#### 💀 Bahaya Kesehatan")
+        for h in health_hazards:
+            st.markdown(f'<div class="hazard-statement">{h.pictogram_code} <b>{h.category}</b>: {h.statement} {render_hazard_badge(h.severity)}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # 3. Bahaya Lingkungan
+    if env_hazards:
+        st.markdown('<div class="hazard-card hazard-environmental">', unsafe_allow_html=True)
+        st.markdown("#### 🐟 Bahaya Lingkungan")
+        for h in env_hazards:
+            st.markdown(f'<div class="hazard-statement">{h.pictogram_code} <b>{h.category}</b>: {h.statement} {render_hazard_badge(h.severity)}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 def render_nfpa_diamond(cid: int):
     """Render NFPA 704 Diamond"""
     nfpa = get_nfpa_diamond(cid)
